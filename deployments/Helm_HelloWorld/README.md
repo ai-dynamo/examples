@@ -1,4 +1,4 @@
-# Dynamo Deployment of Hello World Example with NVCF 
+# Dynamo Deployment of Hello World Example with Helm Chart
 ## 1. Dynamo Application Image 
 1. Build the Dynamo Base Image. For the hello world example, we can just build the leaner image without CUDA and vLLM making it suitable for CPU only deployments.
 ```bash
@@ -36,9 +36,18 @@ docker push nvcr.io/ORG/TEAM/dynamo-application:hello-world
 3. Update the `image:"nvcr.io/ORG/TEAM/dynamo-application:hello-world"` in the `values.yaml` with the Dynamo Application Image you built.
 4. Update the `AUTHENTICATION_TOKEN` with your docker registry token
 5. Update the version `DYNAMO_TAG` with real tag (Optional)
-6. Now test the helm chart in local k8s environment.
-```
+
+## 3. Helm Deployment and test
+1. Now deploy the helm chart in local k8s environment.
+```sh
 helm install dynamo-hello-world chart/
 ```
-## 3. NVCF Deployment
-
+2. Test the deployed example
+```sh
+kubectl port-forward svc/dynamo-helloworld-frontend 8000:80
+curl -X 'POST' 'http://localhost:8000/generate' \
+    -H 'accept: text/event-stream' \
+    -H 'Content-Type: application/json' \
+    -d '{"text": "dynamo_k8s_test"}'
+```
+and you should see the output `Frontend: Middle: Backend: dynamo_k8s_test-mid-back`
