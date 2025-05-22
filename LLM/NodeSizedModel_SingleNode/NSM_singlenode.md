@@ -1,4 +1,6 @@
-# Node-size model serving
+# Node-size model single-node serving
+
+In this page, we  explain how to do serving one node and in particular, we focus on the example of [Disaggregated serving with KV Routing](#disaggregated-serving-with-kv-routing)
 
 Get the IP of the node <remote_ip> :  
 
@@ -22,9 +24,12 @@ Finally, we build the container.
 
 ## Disaggregated serving with KV Routing
 
-This example is performing Disaggregated serving with KV Routing, the configuration file can be found at [disagg_router.yaml](https://github.com/ai-dynamo/dynamo/blob/main/examples/llm/configs/disagg_router.yaml). The model used is DeepSeek-R1-Distill-Llama-8B.
+This example is performing disaggregated serving with KV Routing. Disaggregated serving means that we  separate the compute of the decode and the prefill on different workers. In this example, workers are within the same node, but on different GPUs. The prefill worker will only do prefill, however the other worker (vLLM worker) could be performing both.
+Beyond performing disaggregated serving, the routing of the request is based on the KV cache, meaning that the decision to use the prefill worker (or not) is based on the current state of the KV-cache and if the worker had seen similar requests previously.
 
 The flow of the example is described as follows: ![image](images/mermaid1node_dis.png)
+
+The corresponding configuration file can be found at [disagg_router.yaml](https://github.com/ai-dynamo/dynamo/blob/main/examples/llm/configs/disagg_router.yaml). The model used is DeepSeek-R1-Distill-Llama-8B.
 
 ### Configuration
 
@@ -99,7 +104,7 @@ curl <remote_ip>:8000/v1/chat/completions   -H "Content-Type: application/json" 
     "messages": [
     {
         "role": "user",
-        "content": "In the heart of Eldoria, an ancient land of boundless magic and mysterious creatures, lies the long-forgotten city of Aeloria. Once a beacon of knowledge and power, Aeloria was buried beneath the shifting sands of time, lost to the world for centuries. You are an intrepid explorer, known for your unparalleled curiosity and courage, who has stumbled upon an ancient map hinting at ests that Aeloria holds a secret so profound that it has the potential to reshape the very fabric of reality. Your journey will take you through treacherous deserts, enchanted forests, and across perilous mountain ranges. Your Task: Character Background: Develop a detailed background for your character. Describe their motivations for seeking out Aeloria, their skills and weaknesses, and any personal connections to the ancient city or its legends. Are they driven by a quest for knowledge, a search for lost familt clue is hidden."
+        "content": "In the heart of Eldoria, an ancient land of boundless magic and mysterious creatures, lies the long-forgotten city of Aeloria. Once a beacon of knowledge and power, Aeloria was buried beneath the shifting sands of time, lost to the world for centuries. You are an intrepid explorer, known for your unparalleled curiosity and courage, who has stumbled upon an ancient map hinting at ests that Aeloria holds a secret so profound that it has the potential to reshape the very fabric of reality. Your journey will take you through treacherous deserts, enchanted forests, and across perilous mountain ranges. Your Task: Character Background: Develop a detailed background for your character. Describe their motivations for seeking out Aeloria, their skills and weaknesses, and any personal connections to the ancient city or its legends. Are they driven by a quest for knowledge, a search for lost family clue is hidden."
     }
     ],
     "stream":false,
@@ -122,7 +127,7 @@ seq 1 5 | xargs -n1 -P5 curl <remote_ip>:8000/v1/chat/completions  -o output.txt
 
        "role": "user", 
 
-       "content": "write a very long and boring bedtime story about an unicorn that rhymes" 
+       "content": "In the heart of Eldoria, an ancient land of boundless magic and mysterious creatures, lies the long-forgotten city of Aeloria. Once a beacon of knowledge and power, Aeloria was buried beneath the shifting sands of time, lost to the world for centuries. You are an intrepid explorer, known for your unparalleled curiosity and courage, who has stumbled upon an ancient map hinting at ests that Aeloria holds a secret so profound that it has the potential to reshape the very fabric of reality. Your journey will take you through treacherous deserts, enchanted forests, and across perilous mountain ranges. Your Task: Character Background: Develop a detailed background for your character. Describe their motivations for seeking out Aeloria, their skills and weaknesses, and any personal connections to the ancient city or its legends. Are they driven by a quest for knowledge, a search for lost family clue is hidden." 
 
      } 
 
