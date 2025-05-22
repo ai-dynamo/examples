@@ -150,9 +150,13 @@ seq 1 100 | xargs -n1 -P100 curl <head_node_ip>:8000/v1/chat/completions  -o out
 
 ```
 
-During the inference, you should expect this type of output ![image](images/image1.png).
-You can see the numerous requests being processed as well as the ones waiting/pending. In that case, it seems, it can only handle 15 requests at once.
-However, the GPU KV cache usage remains very low at 2.5% nonetheless.
+During the inference, you can monitor numerous metrics such as average throughput, number of requests being processed, GPU KV cache usage, prefix cache hit rate, as shown in the image below.
+The numerous requests being processed as well as the ones waiting/pending. In that case, it seems, it can only handle 15 requests at once.
+However, the GPU KV cache usage remains very low at 2.5%, however Dynamo reuses the KV cache intensively giving the high prefix cache hit rate, this is expected as we are requested the same request 100 times. It reuses the KV cache over and over again to generate the output for each request.
+
+![image](images/image1.png)
+
+
 
 ## nvidia/Llama-3_3-Nemotron-Super-49B-v1
 
@@ -171,8 +175,7 @@ curl <head_node_ip>:8000/v1/chat/completions  -o output.txt -H "Content-Type: ap
 
         "role": "user", 
 
-        "content": "In the heart of Eldoria, an ancient land of boundless magic and mysterious creatures, lies the long-forgotten city of Aeloria. Once a beacon of knowledge and power, Aeloria was buried beneath the shifting sands of time, lost to the world for centuries. You are an intrepid explorer, known for your unparalleled curiosity and courage, who has stumbled upon an ancient map hinting at ests that Aeloria holds a secret so profound that it has the potential to reshape the very fabric of reality. Your journey will take you through treacherous deserts, enchanted forests, and across perilous mountain ranges. Your Task: Character Background: Develop a detailed background for your character. Describe their motivations for seeking out Aeloria, their skills and weaknesses, and any personal connections to the ancient city or its legends. Are they driven by a quest for knowledge, a search for lost familt clue is hidden." 
-
+        "content": "write a very long and boring bedtime story about an unicorn that rhymes" 
       } 
 
     ], 
