@@ -11,7 +11,7 @@ ip addr | grep -Po '(?!(inet 127.\d.\d.1))(inet \K(\d{1,3}\.){3}\d{1,3})'
 You should take the IP that is not the localhost (meaning not 192.*)
 
 ```bash
-docker compose -f deploy/docker-compose.yml up -d 
+docker compose -f deploy/metrics/docker-compose.yml up -d 
 ```
 
 Finally, we build the container.

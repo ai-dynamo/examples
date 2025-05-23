@@ -42,7 +42,7 @@ Take the IP address that is not the localhost (meaning not 192.*). This will be 
 Then, we set up the NATS and ETCD servers on the head node.
 
 ```bash
-docker compose -f deploy/docker-compose.yml up -d 
+docker compose -f deploy/metrics/docker-compose.yml up -d 
 ```
 
 We build the container.
