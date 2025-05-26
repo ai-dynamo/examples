@@ -161,7 +161,7 @@ However, the GPU KV cache usage remains very low at 2.5%, however Dynamo reuses 
 ## nvidia/Llama-3_3-Nemotron-Super-49B-v1
 
 The same steps as with Llama-3.1-405B-Instruct-FP8 can be followed. The three elements that need to be changed are the configuration file, the name of model and  `max_tokens` number in the request command.
-Instead of using multinode-405b.yaml,  the config file [multinode_llama49b.yaml] (multinode_llama49b.yaml) needs to be used.
+Instead of using multinode-405b.yaml,  the config file [multinode_llama49b.yaml](multinode_llama49b.yaml) needs to be used.
 `max_tokens` depends of the context length of the model and the size of the input prompt and should be adapted. For nvidia/Llama-3_3-Nemotron-Super-49B-v1, the context length is 2048 and given the different parameters should respect this: `max_tokens + input_prompt_length < context_length`.
 
 ```bash
