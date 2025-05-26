@@ -161,29 +161,20 @@ However, the GPU KV cache usage remains very low at 2.5%, however Dynamo reuses 
 ## nvidia/Llama-3_3-Nemotron-Super-49B-v1
 
 The same steps as with Llama-3.1-405B-Instruct-FP8 can be followed. The three elements that need to be changed are the configuration file, the name of model and  `max_tokens` number in the request command.
-Instead of using multinode-405b.yaml,  the config file [multinode_llama49b.yaml] (#multinode---nvidiallama-3_3-nemotron-super-49b-v1) needs to be used.
+Instead of using multinode-405b.yaml,  the config file [multinode_llama49b.yaml] (multinode_llama49b.yaml) needs to be used.
 `max_tokens` depends of the context length of the model and the size of the input prompt and should be adapted. For nvidia/Llama-3_3-Nemotron-Super-49B-v1, the context length is 2048 and given the different parameters should respect this: `max_tokens + input_prompt_length < context_length`.
 
 ```bash
-curl <head_node_ip>:8000/v1/chat/completions  -o output.txt -H "Content-Type: application/json"   -H "Accept: text/event-stream"   -d '{ 
-
-    "model": "nvidia/Llama-3_3-Nemotron-Super-49B-v1", 
-
-    "messages": [ 
-
-      { 
-
-        "role": "user", 
-
-        "content": "write a very long and boring bedtime story about an unicorn that rhymes" 
-      } 
-
-    ], 
-
-    "stream": true, 
-
-    "max_tokens": 1500 
-
-  }'  
+curl <head_node_ip>:8000/v1/chat/completions   -H "Content-Type: application/json"   -d '{
+    "model": "nvidia/Llama-3_3-Nemotron-Super-49B-v1",
+    "messages": [
+    {
+        "role": "user",
+        "content": "In the heart of Eldoria, an ancient land of boundless magic and mysterious creatures, lies the long-forgotten city of Aeloria. Once a beacon of knowledge and power, Aeloria was buried beneath the shifting sands of time, lost to the world for centuries. You are an intrepid explorer, known for your unparalleled curiosity and courage, who has stumbled upon an ancient map hinting at ests that Aeloria holds a secret so profound that it has the potential to reshape the very fabric of reality. Your journey will take you through treacherous deserts, enchanted forests, and across perilous mountain ranges. Your Task: Character Background: Develop a detailed background for your character. Describe their motivations for seeking out Aeloria, their skills and weaknesses, and any personal connections to the ancient city or its legends. Are they driven by a quest for knowledge, a search for lost family clue is hidden."
+    }
+    ],
+    "stream":false,
+    "max_tokens": 1500
+  }'
 
 ```
