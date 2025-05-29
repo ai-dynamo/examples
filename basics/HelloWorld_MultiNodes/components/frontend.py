@@ -19,7 +19,7 @@ from components.processor import Processor
 from components.utils import GeneralRequest
 from fastapi.responses import StreamingResponse
 
-from dynamo.sdk import DYNAMO_IMAGE, depends, dynamo_endpoint, service
+from dynamo.sdk import DYNAMO_IMAGE, depends, dynamo_api, dynamo_endpoint, service
 
 logger = logging.getLogger(__name__)
 
