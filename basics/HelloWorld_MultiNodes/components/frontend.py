@@ -24,10 +24,7 @@ from dynamo.sdk import DYNAMO_IMAGE, depends, dynamo_api, dynamo_endpoint, servi
 logger = logging.getLogger(__name__)
 
 @service(
-    dynamo={
-        "enabled": True,
-        "namespace": "dynamo-demo",
-    },
+    dynamo={"namespace": "dynamo-demo"},
     image=DYNAMO_IMAGE,
 )
 class Frontend:

@@ -24,10 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 @service(
-    dynamo={
-        "enabled": True,
-        "namespace": "dynamo-demo",
-    },
+    dynamo={"namespace": "dynamo-demo"},
     image=DYNAMO_IMAGE,
     resources={"cpu": "10", "memory": "20Gi"},
     workers=1,

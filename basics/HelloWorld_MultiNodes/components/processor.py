@@ -15,7 +15,6 @@
 
 import logging
 import socket
-from typing import Protocol
 
 from components.utils import GeneralRequest, GeneralResponse, check_required_workers
 from components.worker import DummyWorker
@@ -36,18 +35,15 @@ logger = logging.getLogger(__name__)
 
 
 @service(
-    dynamo={
-        "enabled": True,
-        "namespace": "dynamo-demo",
-    },
+    dynamo={"namespace": "dynamo-demo"},
     image=DYNAMO_IMAGE,
 )
-class Processor(Protocol):
+class Processor:
     """
     Pre and Post Processing
     """
 
-    worker: DynamoClient = depends(DummyWorker)
+    worker: DynamoClient
     router: str
     hostname: str
     min_workers: int
