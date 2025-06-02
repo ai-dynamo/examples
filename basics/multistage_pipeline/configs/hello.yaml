@@ -1,0 +1,28 @@
+# Multi-stage pipeline configuration with "Hello" greeting
+
+Frontend:
+  ServiceArgs:
+    workers: 1
+
+Middle:
+  routing_mode: "smart"  # Options: smart, random, round_robin
+  min_workers: 2
+  greeting: "Hello"
+  ServiceArgs:
+    workers: 1
+
+Router:
+  algorithm: "hash"  # Options: hash, load
+  ServiceArgs:
+    workers: 1
+
+Backend:
+  sleep_time: 1
+  queue_enabled: true
+  queue_threshold: 10  # Queue tasks with more than 10 words
+  ServiceArgs:
+    workers: 2
+
+QueueWorker:
+  ServiceArgs:
+    workers: 1

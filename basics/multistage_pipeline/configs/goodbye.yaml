@@ -1,0 +1,28 @@
+# Multi-stage pipeline configuration with "Goodbye" greeting
+
+Frontend:
+  ServiceArgs:
+    workers: 1
+
+Middle:
+  routing_mode: "round_robin"  # Different routing mode
+  min_workers: 2
+  greeting: "Goodbye"
+  ServiceArgs:
+    workers: 1
+
+Router:
+  algorithm: "load"  # Load-based routing
+  ServiceArgs:
+    workers: 1
+
+Backend:
+  sleep_time: 0.5  # Faster processing
+  queue_enabled: true
+  queue_threshold: 5  # Lower threshold for queuing
+  ServiceArgs:
+    workers: 3  # More workers
+
+QueueWorker:
+  ServiceArgs:
+    workers: 2  # More queue workers
