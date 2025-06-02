@@ -1,28 +1,41 @@
-# Multi-stage pipeline configuration with "Goodbye" greeting
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 Frontend:
   ServiceArgs:
     workers: 1
 
 Middle:
-  routing_mode: "round_robin"  # Different routing mode
+  routing_mode: "round_robin"
   min_workers: 2
   greeting: "Goodbye"
   ServiceArgs:
     workers: 1
 
 Router:
-  algorithm: "load"  # Load-based routing
+  algorithm: "load"
   ServiceArgs:
     workers: 1
 
 Backend:
-  sleep_time: 0.5  # Faster processing
+  sleep_time: 0.5
   queue_enabled: true
-  queue_threshold: 5  # Lower threshold for queuing
+  queue_threshold: 5
   ServiceArgs:
-    workers: 3  # More workers
+    workers: 3
 
 QueueWorker:
   ServiceArgs:
-    workers: 2  # More queue workers
+    workers: 2
