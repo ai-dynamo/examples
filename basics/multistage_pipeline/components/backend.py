@@ -18,11 +18,14 @@ import time
 import os
 import socket
 import asyncio
+import msgspec
+from typing import Optional
 
 from dynamo.sdk import endpoint, service, async_on_start, async_on_shutdown
 from dynamo.sdk.lib.config import ServiceConfig
+from dynamo._core import NatsQueue
 
-from components.utils import TextRequest, TextResponse, QueueTask, TextProcessingQueue
+from components.utils import TextRequest, TextResponse, QueueTask
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +45,7 @@ class Backend:
         # Worker identification
         self.worker_id = f"{socket.gethostname()}_{os.getpid()}"
         self.nats_server = os.environ.get("NATS_SERVER", "nats://localhost:4222")
-        self.queue = None
+        self.queue: Optional[NatsQueue] = None
 
         logger.info(f"Backend worker {self.worker_id} initialized")
         logger.info(f"Queue enabled: {self.queue_enabled}, threshold: {self.queue_threshold}")
@@ -52,8 +55,12 @@ class Backend:
         """Initialize queue connection if enabled"""
         if self.queue_enabled:
             try:
-                self.queue_context = TextProcessingQueue.get_instance(nats_server=self.nats_server)
-                self.queue = await self.queue_context.__aenter__()
+                self.queue = NatsQueue(
+                    stream_name="text_processing",
+                    nats_server=self.nats_server,
+                    dequeue_timeout=1.0
+                )
+                await self.queue.connect()
                 logger.info("Queue connection established")
             except Exception as e:
                 logger.error(f"Failed to connect to queue: {e}")
@@ -62,8 +69,8 @@ class Backend:
     @async_on_shutdown
     async def cleanup_queue(self):
         """Clean up queue connection"""
-        if self.queue and self.queue_context:
-            await self.queue_context.__aexit__(None, None, None)
+        if self.queue:
+            await self.queue.close()
 
     async def _should_queue_task(self, text: str) -> bool:
         """Determine if task should be queued based on criteria"""
@@ -83,7 +90,8 @@ class Backend:
                 source_worker=self.worker_id
             )
             try:
-                await self.queue.enqueue_task(task)
+                encoded_task = msgspec.json.encode(task)
+                await self.queue.enqueue_task(encoded_task)
                 logger.info(f"Queued task {request.request_id} for additional processing")
             except Exception as e:
                 logger.error(f"Failed to queue task: {e}")
@@ -126,33 +134,46 @@ class QueueWorker:
         self.worker_id = f"queue_{socket.gethostname()}_{os.getpid()}"
         self.nats_server = os.environ.get("NATS_SERVER", "nats://localhost:4222")
         self.processing = True
+        self.queue: Optional[NatsQueue] = None
         logger.info(f"Queue worker {self.worker_id} initialized")
 
     @async_on_start
     async def start_processing(self):
         """Start processing tasks from queue"""
-        asyncio.create_task(self._process_queue())
+        self.queue = NatsQueue(
+            stream_name="text_processing",
+            nats_server=self.nats_server,
+            dequeue_timeout=1.0
+        )
+        try:
+            await self.queue.connect()
+            logger.info("Queue worker connected to NATS")
+            asyncio.create_task(self._process_queue())
+        except Exception as e:
+            logger.error(f"Failed to connect to queue: {e}")
 
     async def _process_queue(self):
         """Continuously process tasks from queue"""
-        async with TextProcessingQueue.get_instance(nats_server=self.nats_server) as queue:
-            while self.processing:
-                try:
-                    task = await queue.dequeue_task()
-                    if task:
-                        logger.info(f"Queue worker processing task {task.request_id}")
-                        # Process the task (could be more complex processing)
-                        processed = f"[QUEUED] {task.greeting} {task.text} (from {task.source_worker})"
-                        logger.info(f"Processed: {processed}")
-                        # In a real system, might save results or trigger other actions
-                    else:
-                        # No task available, wait a bit
-                        await asyncio.sleep(0.1)
-                except Exception as e:
-                    logger.error(f"Error processing queue task: {e}")
-                    await asyncio.sleep(1)
+        while self.processing and self.queue:
+            try:
+                task_data = await self.queue.dequeue_task()
+                if task_data:
+                    task = msgspec.json.decode(task_data, type=QueueTask)
+                    logger.info(f"Queue worker processing task {task.request_id}")
+                    # Process the task (could be more complex processing)
+                    processed = f"[QUEUED] {task.greeting} {task.text} (from {task.source_worker})"
+                    logger.info(f"Processed: {processed}")
+                    # In a real system, might save results or trigger other actions
+                else:
+                    # No task available, wait a bit
+                    await asyncio.sleep(0.1)
+            except Exception as e:
+                logger.error(f"Error processing queue task: {e}")
+                await asyncio.sleep(1)
 
     @async_on_shutdown
     async def stop_processing(self):
         """Stop processing queue"""
         self.processing = False
+        if self.queue:
+            await self.queue.close()
