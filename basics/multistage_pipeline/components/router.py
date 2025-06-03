@@ -14,13 +14,11 @@
 # limitations under the License.
 
 import logging
-import hashlib
-from typing import Dict, List
+from typing import Dict
 import asyncio
 
 from dynamo.sdk import endpoint, service, dynamo_context, async_on_start
-from dynamo.sdk.lib.config import ServiceConfig
-from dynamo._core import Client
+from dynamo.runtime import Client
 
 from components.backend import Backend
 
@@ -31,17 +29,14 @@ logger = logging.getLogger(__name__)
     dynamo={"namespace": "multistage"},
 )
 class Router:
-    """Router service that determines best worker for each request."""
+    """Router service that uses workload-based routing to distribute requests."""
 
     backend_client: Client
-    worker_states: Dict[int, Dict]
-    routing_algorithm: str
+    worker_loads: Dict[int, int]
 
     def __init__(self):
-        config = ServiceConfig.get_instance()
-        self.routing_algorithm = config.get("Router", {}).get("algorithm", "hash")
-        self.worker_states = {}
-        logger.info(f"Router initialized with algorithm: {self.routing_algorithm}")
+        self.worker_loads = {}
+        logger.info("Router initialized with workload-based routing")
 
     @async_on_start
     async def async_init(self):
@@ -58,88 +53,47 @@ class Router:
         asyncio.create_task(self._monitor_workers())
 
     async def _monitor_workers(self):
-        """Monitor worker availability and states"""
+        """Monitor worker availability and reset loads periodically"""
         while True:
             try:
                 worker_ids = self.backend_client.instance_ids()
 
-                # Update worker states
+                # Initialize new workers with zero load
                 for worker_id in worker_ids:
-                    if worker_id not in self.worker_states:
-                        self.worker_states[worker_id] = {
-                            "available": True,
-                            "processed_count": 0,
-                            "last_text_hash": None
-                        }
+                    if worker_id not in self.worker_loads:
+                        self.worker_loads[worker_id] = 0
 
                 # Remove stale workers
-                stale_workers = [wid for wid in self.worker_states if wid not in worker_ids]
+                stale_workers = [wid for wid in self.worker_loads if wid not in worker_ids]
                 for wid in stale_workers:
-                    del self.worker_states[wid]
+                    del self.worker_loads[wid]
+
+                logger.info(f"Active workers: {worker_ids}, loads: {self.worker_loads}")
 
             except Exception as e:
                 logger.error(f"Error monitoring workers: {e}")
 
-            await asyncio.sleep(5)  # Check every 5 seconds
-
-    def _get_text_hash(self, text: str) -> str:
-        """Get hash of text for consistent routing"""
-        return hashlib.md5(text.encode()).hexdigest()
-
-    def _get_best_worker_by_hash(self, text: str) -> tuple[int, float]:
-        """Select worker based on text hash for sticky sessions"""
-        if not self.worker_states:
-            return -1, 0.0
-
-        text_hash = self._get_text_hash(text)
-        worker_ids = list(self.worker_states.keys())
-
-        # Simple hash-based selection
-        selected_idx = int(text_hash, 16) % len(worker_ids)
-        selected_worker = worker_ids[selected_idx]
-
-        # Score based on whether this worker has seen similar text
-        score = 1.0
-        if self.worker_states[selected_worker]["last_text_hash"] == text_hash[:8]:
-            score = 2.0  # Higher score for cache hit
-
-        return selected_worker, score
+            await asyncio.sleep(10)  # Check every 10 seconds
 
     def _get_best_worker_by_load(self) -> tuple[int, float]:
-        """Select worker with lowest load"""
-        if not self.worker_states:
+        """Select worker with lowest current load"""
+        if not self.worker_loads:
             return -1, 0.0
 
-        # Find worker with lowest processed count
-        best_worker = min(
-            self.worker_states.items(),
-            key=lambda x: x[1]["processed_count"]
-        )
-
+        # Find worker with minimum load
+        best_worker = min(self.worker_loads.items(), key=lambda x: x[1])
         return best_worker[0], 1.0
 
     @endpoint()
     async def get_best_worker(self, text: str) -> str:
-        """Return best worker ID and score for the given text"""
-        worker_id = -1
-        score = 0.0
-
-        if self.routing_algorithm == "hash":
-            worker_id, score = self._get_best_worker_by_hash(text)
-        elif self.routing_algorithm == "load":
-            worker_id, score = self._get_best_worker_by_load()
-        else:
-            # Default to hash-based
-            worker_id, score = self._get_best_worker_by_hash(text)
+        """Return best worker ID based on current workload"""
+        worker_id, score = self._get_best_worker_by_load()
 
         if worker_id >= 0:
-            # Update worker state
-            self.worker_states[worker_id]["processed_count"] += 1
-            self.worker_states[worker_id]["last_text_hash"] = self._get_text_hash(text)[:8]
-
-        logger.info(f"Router selected worker {worker_id} with score {score} for text: {text[:30]}...")
-
-        if worker_id < 0:
-            yield "none:0.0"
-        else:
+            # Increment load for selected worker
+            self.worker_loads[worker_id] += 1
+            logger.info(f"Router selected worker {worker_id} (load: {self.worker_loads[worker_id]}) for text: {text[:30]}...")
             yield f"{worker_id}:{score}"
+        else:
+            logger.warning("No workers available")
+            yield "none:0.0"

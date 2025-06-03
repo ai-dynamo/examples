@@ -18,14 +18,14 @@ Frontend:
     workers: 1
 
 Middle:
-  routing_mode: "round_robin"
+  routing_mode: "random"  # Options: smart, random
   min_workers: 2
   greeting: "Goodbye"
   ServiceArgs:
     workers: 1
 
 Router:
-  algorithm: "load"
+  # Uses workload-based routing to distribute requests evenly
   ServiceArgs:
     workers: 1
 

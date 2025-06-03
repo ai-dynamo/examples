@@ -20,7 +20,7 @@ import os
 from dynamo.sdk import async_on_start, depends, dynamo_context, endpoint, service
 from dynamo.sdk.lib.config import ServiceConfig
 from dynamo.sdk.lib.dependency import DynamoClient
-from dynamo._core import Client
+from dynamo.runtime import Client
 
 from components.router import Router
 from components.backend import Backend
@@ -46,6 +46,12 @@ class Middle:
         self.routing_mode = config.get("Middle", {}).get("routing_mode", "smart")
         self.min_workers = config.get("Middle", {}).get("min_workers", 2)
         self.greeting = config.get("Middle", {}).get("greeting", "Hello")
+
+        # Validate routing mode
+        if self.routing_mode not in ["smart", "random"]:
+            logger.warning(f"Invalid routing_mode '{self.routing_mode}', defaulting to 'smart'")
+            self.routing_mode = "smart"
+
         logger.info(f"Middle initialized: routing_mode={self.routing_mode}, min_workers={self.min_workers}")
 
     @async_on_start
@@ -65,7 +71,7 @@ class Middle:
         )
 
     async def _process_with_routing(self, request: TextRequest):
-        """Process request with intelligent routing"""
+        """Process request with intelligent or random routing"""
         # Add greeting to request if not present
         if request.greeting is None:
             request.greeting = self.greeting
@@ -87,21 +93,19 @@ class Middle:
                     int(worker_id),
                 )
             else:
-                # Fallback to round-robin
-                backend_generator = await self.backend_client.round_robin(
+                # Fallback to random
+                logger.warning("No worker available from router, falling back to random")
+                backend_generator = await self.backend_client.random(
                     request.model_dump_json()
                 )
         elif self.routing_mode == "random":
             backend_generator = await self.backend_client.random(
                 request.model_dump_json()
             )
-        elif self.routing_mode == "round_robin":
-            backend_generator = await self.backend_client.round_robin(
-                request.model_dump_json()
-            )
         else:
-            # Default to round-robin
-            backend_generator = await self.backend_client.round_robin(
+            # Should not reach here due to validation in __init__
+            logger.error(f"Unexpected routing_mode: {self.routing_mode}, using random")
+            backend_generator = await self.backend_client.random(
                 request.model_dump_json()
             )
 
