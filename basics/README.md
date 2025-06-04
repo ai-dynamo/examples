@@ -27,6 +27,7 @@ hello_world/README
 hello_world_configurable/README
 simple_pipeline/README
 multistage_pipeline/README
+HelloWorld_MultiNodes/README
 ```
 
 ## Learning Path
@@ -61,6 +62,14 @@ multistage_pipeline/README
 - Distributed worker management
 - Production-ready patterns
 
+### 5. [Hello World MultiNodes](HelloWorld_MultiNodes/README.md)
+**Multi-node deployment** - Demonstrates distributed service deployment:
+- Multi-node service architecture
+- Worker deployment across different nodes
+- Service routing strategies (round-robin, random)
+- Distributed system coordination with NATS and etcd
+- Load balancing across multiple worker instances
+
 ## Quick Start
 
 Each example can be run independently. To get started:
@@ -80,6 +89,10 @@ dynamo serve hello_world:Frontend
 # Try configuration
 cd hello_world_configurable
 dynamo serve hello_world_configurable:Frontend -f config.yaml
+
+# Multi-node deployment
+cd HelloWorld_MultiNodes
+dynamo serve components.graph:Frontend -f configs/one_worker.yaml
 
 # Explore pipelines
 cd simple_pipeline
