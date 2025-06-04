@@ -1,4 +1,4 @@
-# Node-size model single-node serving
+# Single-Node-Sized model single-node serving
 
 In this page, we  explain how to do serving one node and in particular, we focus on the example of [Disaggregated serving with KV Routing](#disaggregated-serving-with-kv-routing)
 
