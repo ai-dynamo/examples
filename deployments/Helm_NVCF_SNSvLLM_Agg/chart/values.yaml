@@ -1,0 +1,68 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+image: "nvcr.io/ORG/TEAM/dynamo-application:vllm-agg" # HC version for NVCF
+dynamoIdentifier: "graphs.agg:Frontend"
+configFilePath: "configs/agg.yaml" # OPTIONAL: Path to the config file in the image. If not provided, the default config will be used.
+dockerPullSecret:
+  name: "mydockersecret"
+  auth: |
+    {
+      "auths": {
+        "nvcr.io": {
+          "auth": "AUTHENTICATION_TOKEN"
+        }
+      }
+    }
+
+# Default values for nats.
+nats:
+  image: "nats"
+
+etcd:
+  image: "bitnami/etcd"
+
+# pipeline-values
+service: graphs.agg:Frontend
+name: frontend
+version: DYNAMO_TAG
+bentoml_version: 1.4.8
+creation_time: '2025-05-07T20:22:29.296126+00:00'
+labels: {}
+models: []
+entry_service: Frontend
+services:
+- name: Frontend
+  service: ''
+  models: []
+  dependencies:
+  - service: Processor
+  config:
+    resources:
+      cpu: '10'
+      memory: 40Gi
+    workers: 1
+    dynamo:
+      enabled: true
+      name: Frontend
+      namespace: dynamo
+      custom_lease: null
+envs: []
+schema:
+  name: Frontend
+  type: service
+  routes: []
+args: {}
+spec: 2
