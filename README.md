@@ -18,7 +18,7 @@ Foundational examples to get started with Dynamo:
 
 - **[`hello_world/`](./basics/hello_world/)** - Simple hello world example demonstrating basic Dynamo component structure and execution flow
 - **[`hello_world_configurable/`](./basics/hello_world_configurable/)** - Configurable hello world example showing how to parameterize components and use configuration files
-- **[`HelloWorld_MultiNodes/`](./basics/HelloWorld_MultiNodes/)** - Multi-node hello world example demonstrating distributed execution across multiple nodes with:
+- **[`hello_world_multinode/`](./basics/hello_world_multinode/)** - Multi-node hello world example demonstrating distributed execution across multiple nodes with:
   - Component definitions in [`components/`](./basics/HelloWorld_MultiNodes/components/)
   - Configuration files in [`configs/`](./basics/HelloWorld_MultiNodes/configs/)
   - Visual diagrams in [`_img/`](./basics/HelloWorld_MultiNodes/_img/)
@@ -27,6 +27,11 @@ Foundational examples to get started with Dynamo:
   - Environment-specific configs in [`configs/`](./basics/multistage_pipeline/configs/)
   - Pipeline graphs in [`graphs/`](./basics/multistage_pipeline/graphs/)
 - **[`simple_pipeline/`](./basics/simple_pipeline/)** - Streamlined pipeline example for understanding core pipeline concepts
+
+### [`llm/`](./llm/)
+
+Large Language Model examples and configurations:
+- **[`SNSvLLM_Disagg_SingleNode/`](./LLM/SNSvLLM_Disagg_SingleNode/)** - SNS vLLM disaggregated single node example with visual documentation in [`images/`](./LLM/SNSvLLM_Disagg_SingleNode/images/)
 
 ### [`customizations/`](./customizations/)
 Advanced examples showing custom implementation patterns:
@@ -39,16 +44,6 @@ Production deployment examples and configurations:
 - Cloud deployment strategies
 - Container orchestration setups
 - Scaling and monitoring configurations
-
-### [`llm/`](./llm/)
-Large Language Model examples and configurations:
-- Model serving patterns
-- Inference optimization techniques
-- Multi-model deployment strategies
-
-### [`LLM/`](./LLM/)
-Specialized LLM implementations:
-- **[`SNSvLLM_Disagg_SingleNode/`](./LLM/SNSvLLM_Disagg_SingleNode/)** - SNS vLLM disaggregated single node example with visual documentation in [`images/`](./LLM/SNSvLLM_Disagg_SingleNode/images/)
 
 ## Getting Started
 
