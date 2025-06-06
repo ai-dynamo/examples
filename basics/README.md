@@ -62,7 +62,7 @@ HelloWorld_MultiNodes/README
 - Distributed worker management
 - Production-ready patterns
 
-### 5. [Hello World MultiNodes](HelloWorld_MultiNodes/README.md)
+### 5. [Hello World MultiNodes](hello_world_multinode/README.md)
 **Multi-node deployment** - Demonstrates distributed service deployment:
 - Multi-node service architecture
 - Worker deployment across different nodes
