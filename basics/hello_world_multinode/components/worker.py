@@ -18,7 +18,7 @@ import socket
 
 from components.utils import GeneralRequest, GeneralResponse
 
-from dynamo.sdk import DYNAMO_IMAGE, dynamo_endpoint, service
+from dynamo.sdk import DYNAMO_IMAGE, endpoint, service
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class DummyWorker:
     def __init__(self):
         self.hostname = socket.gethostname()
 
-    @dynamo_endpoint()
+    @endpoint()
     async def generate(self, request: GeneralRequest):
         logger.info(f"{self.hostname}: Worker invoked")
         yield GeneralResponse(
