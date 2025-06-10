@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-image: "nvcr.io/ORG/TEAM/dynamo-application:vllm-agg" # HC version for NVCF
+image: "nvcr.io/ORG/TEAM/dynamo-application:vllm-agg"
 dynamoIdentifier: "graphs.agg:Frontend"
 configFilePath: "configs/agg.yaml" # OPTIONAL: Path to the config file in the image. If not provided, the default config will be used.
 dockerPullSecret:
