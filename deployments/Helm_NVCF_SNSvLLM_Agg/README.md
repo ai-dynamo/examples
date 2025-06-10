@@ -33,4 +33,33 @@ docker push nvcr.io/ORG/TEAM/dynamo-application:vllm-agg
 helm install dynamo-vllm-test chart/
 ```
 ## 3. NVCF Deployment
+1. Upload the Application Image to the NGC Private Registry which has NVCF access and update `chart/values.yaml` with new image URL. 
+2. Upload the Helm chart into NGC Private Registry
+```
+# Package the Helm Chart as dynamo-pipeline-0.1.0.tgz
+helm package chart/
+# Create NGC Privacy Registry for Helm Chart
+ngc registry chart create TEAM/dynamo-pipeline --short-desc "NVCF Dynamo deployment"
+# Upload Helm Chart to the NGC Privacy Registry
+ngc registry chart push TEAM/dynamo-pipeline:0.1.0
+```
+3. Create NVCF Function. Detailed instructions [here](https://docs.nvidia.com/cloud-functions/user-guide/latest/cloud-function/function-creation.html)
+```sh
+ngc cloud-function function create  \
+    --name nvcf-dynamo-pipeline \
+    --helm-chart TEAM/dynamo-pipeline:0.1.0 \
+    --helm-chart-service dynamo-vllm-frontend \
+    --inference-url "/v1/chat/completions" \
+    --inference-port 80 \
+    --health-protocol "HTTP" \ 
+    --health-uri "/v1/health" \
+    --health-port 80 
 
+```
+4. Deploy NVCF Function. Detailed instructions [here](https://docs.nvidia.com/cloud-functions/user-guide/latest/cloud-function/function-deployment.html)
+```sh
+ngc cloud-function function deploy create \
+    $FUNCTION_ID:$FUNCTION_VERSION_ID \
+    --targeted-deployment-specification \
+    $DEPLOYMENT_SPECIFICATIONS 
+```

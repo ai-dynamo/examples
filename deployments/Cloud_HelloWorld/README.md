@@ -24,7 +24,7 @@ Get your docker authentication token
 export DOCKER_USERNAME='$oauthtoken'
 export DOCKER_PASSWORD='AUTHENTICATION_TOKEN'
 export DOCKER_SERVER='nvcr.io/${ORG}/${TEAM}'
-export NAMESPACE='dyanmo-cloud'
+export NAMESPACE='dynamo-cloud'
 
 cd dynamo/deploy/cloud/helm
 kubectl create namespace $NAMESPACE
