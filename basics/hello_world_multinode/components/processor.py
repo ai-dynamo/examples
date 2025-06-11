@@ -25,7 +25,7 @@ from dynamo.sdk import (
     async_on_start,
     depends,
     dynamo_context,
-    dynamo_endpoint,
+    endpoint,
     service,
 )
 from dynamo.sdk.lib.config import ServiceConfig
@@ -70,7 +70,7 @@ class Processor:
         await check_required_workers(
             self.worker_client, self.min_workers, tag="processor"
         )
-        logger.info(f"----workers are all ready {self.worker_client.endpoint_ids()}")
+        logger.info(f"----workers are all ready {self.worker_client.instance_ids()}")
 
     async def _generate(
         self,
@@ -89,7 +89,7 @@ class Processor:
         async for resp in engine_generator:
             yield GeneralResponse.model_validate_json(resp.data())
 
-    @dynamo_endpoint()
+    @endpoint()
     async def generate(self, request: GeneralRequest):
         """Forward requests to backend."""
         mid_request = request.model_dump_json()

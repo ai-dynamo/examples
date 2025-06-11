@@ -19,7 +19,7 @@ from components.processor import Processor
 from components.utils import GeneralRequest
 from fastapi.responses import StreamingResponse
 
-from dynamo.sdk import DYNAMO_IMAGE, depends, dynamo_api, dynamo_endpoint, service
+from dynamo.sdk import DYNAMO_IMAGE, depends, api, endpoint, service
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +29,8 @@ logger = logging.getLogger(__name__)
 )
 class Frontend:
     processor = depends(Processor)
-    # alternative syntax: @dynamo_endpoint(transports=[DynamoTransport.HTTP])
-    @dynamo_api()
+    # alternative syntax: @endpoint(transports=[DynamoTransport.HTTP])
+    @api()
     async def generate(self, request: GeneralRequest):  # from request body keys
         """Stream results from the pipeline."""
         logger.info(f"-Frontend layer received: {request=}")
