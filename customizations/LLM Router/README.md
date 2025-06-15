@@ -1,400 +1,323 @@
-# LLM Router with NVIDIA Dynamo - Kubernetes Deployment Guide
+# LLM Router with NVIDIA Dynamo Cloud Platform - Kubernetes Deployment Guide
 
-This guide provides step-by-step instructions for deploying [NVIDIA LLM Router](https://github.com/NVIDIA-AI-Blueprints/llm-router) with [NVIDIA Dynamo](https://github.com/ai-dynamo/dynamo/tree/main/deploy/cloud) on Kubernetes.
+This guide provides step-by-step instructions for deploying [NVIDIA LLM Router](https://github.com/NVIDIA-AI-Blueprints/llm-router) with the official [NVIDIA Dynamo Cloud Platform](https://docs.nvidia.com/dynamo/latest/guides/dynamo_deploy/dynamo_cloud.html) on Kubernetes.
 
 ## Overview
 
-The LLM Router intelligently routes LLM requests to the most appropriate model based on the task at hand. This deployment strategy will:
+This integration demonstrates how to deploy the official NVIDIA Dynamo Cloud Platform for distributed LLM inference and route requests intelligently using the NVIDIA LLM Router. The setup includes:
 
-- **Deploy Dynamo using Cloud Operator** - Use the official Dynamo cloud operator for robust, scalable deployment
-- **Deploy LLMs via Dynamo Cloud** - Host multiple LLM models through Dynamo's cloud infrastructure
-- **Configure LLM Router** - Point the router to different models hosted on Dynamo cloud
+1. **NVIDIA Dynamo Cloud Platform**: Official distributed inference serving framework with disaggregated serving capabilities
+2. **LLM Router**: Intelligent request routing based on task complexity and type
+3. **Multiple LLM Models**: Various models deployed via Dynamo's inference graphs
+
+### Architecture
+
+The integration consists of:
+
+- **NVIDIA Dynamo Cloud Platform**: Official distributed inference serving framework
+- **LLM Router**: Routes requests to appropriate models based on task complexity and type
+- **Multiple LLM Models**: Various models deployed via Dynamo's disaggregated serving
+
+### Key Components
+
+- **dynamo-cloud-deployment.yaml**: Configuration for Dynamo Cloud Platform deployment
+- **dynamo-llm-deployment.yaml**: DynamoGraphDeployment for multi-LLM inference
+- **router-config-dynamo.yaml**: Router policies for Dynamo integration
+- **llm-router-values-dynamo.yaml**: Helm values for LLM Router with Dynamo
+- **deploy-dynamo-integration.sh**: Automated deployment script
 
 ## Quick Start
 
-Choose your deployment option using the provided configuration files:
-
-### Option 1: Minimal Verification (1 GPU)
-```bash
-# 1. Deploy Dynamo Cloud Operator
-kubectl apply -f https://github.com/ai-dynamo/dynamo/releases/latest/download/dynamo-operator.yaml
-
-# 2. Deploy single LLM via Dynamo
-kubectl create namespace dynamo
-kubectl apply -f dynamo-single-llm-config.yaml
-
-# 3. Clone LLM Router and deploy with Helm
-git clone https://github.com/NVIDIA-AI-Blueprints/llm-router.git
-cd llm-router
-
-# 4. Create ConfigMap and deploy router
-kubectl create configmap router-config \
-  --from-file=config.yaml=../router-config-single.yaml \
-  -n llm-router
-
-helm upgrade --install llm-router deploy/helm/llm-router \
-  -f ../llm-router-values-override.yaml \
-  -n llm-router \
-  --create-namespace \
-  --wait --timeout=10m
-
-# 5. Test the integration
-kubectl port-forward svc/router-controller 8084:8084 -n llm-router &
-curl -X POST http://localhost:8084/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{"model":"","messages":[{"role":"user","content":"Hello!"}],"nim-llm-router":{"policy":"task_router"}}'
-```
-
-### Option 2: Full Production (32 GPUs)
-
-**Model Routing Configuration:**
-
-| **Task Router** | **Model** | **GPUs** | **Use Case** |
-|-----------------|-----------|----------|--------------|
-| Brainstorming | llama-3.1-70b-instruct | 4 | Creative ideation |
-| Chatbot | mixtral-8x22b-instruct | 4 | Conversational AI |
-| Code Generation | llama-3.1-nemotron-70b-instruct | 4 | Programming tasks |
-| Summarization | phi-3-mini-128k-instruct | 1 | Text summarization |
-| Text Generation | llama-3.2-11b-vision-instruct | 2 | General text creation |
-| Open QA | llama-3.1-405b-instruct | 8 | Complex questions |
-| Closed QA | llama-3.1-8b-instruct | 1 | Simple Q&A |
-| Classification | phi-3-mini-4k-instruct | 1 | Text classification |
-| Extraction | llama-3.1-8b-instruct | 1 | Information extraction |
-| Rewrite | phi-3-medium-128k-instruct | 2 | Text rewriting |
-
-| **Complexity Router** | **Model** | **GPUs** | **Use Case** |
-|----------------------|-----------|----------|--------------|
-| Creativity | llama-3.1-70b-instruct | 4 | Creative tasks |
-| Reasoning | llama-3.3-nemotron-super-49b | 4 | Complex reasoning |
-| Contextual-Knowledge | llama-3.1-405b-instruct | 8 | Knowledge-intensive |
-| Few-Shot | llama-3.1-70b-instruct | 4 | Few-shot learning |
-| Domain-Knowledge | llama-3.1-nemotron-70b-instruct | 4 | Specialized domains |
-| No-Label-Reason | llama-3.1-8b-instruct | 1 | Simple reasoning |
-| Constraint | phi-3-medium-128k-instruct | 2 | Constrained tasks |
-
-**Total: 32 GPUs across 10 different models + 1 GPU for Router Server = 33 GPUs**
-
-> **💡 Customization Note:** These model assignments can be changed to suit your specific needs. You can modify the `router-config.yaml` file to:
-> - Assign different models to different tasks
-> - Add or remove routing categories
-> - Adjust GPU allocation based on your hardware
-> - Use different model variants or sizes
-> 
-> The routing configuration is fully customizable based on your use case and available resources.
+### Automated Deployment (Recommended)
 
 ```bash
-# 1. Deploy Dynamo Cloud Operator
-kubectl apply -f https://github.com/ai-dynamo/dynamo/releases/latest/download/dynamo-operator.yaml
+# Make the script executable
+chmod +x deploy-dynamo-integration.sh
 
-# 2. Deploy full LLM cluster via Dynamo
-kubectl create namespace dynamo
-kubectl apply -f dynamo-llm-config.yaml
+# Deploy everything (Dynamo + LLM Router)
+./deploy-dynamo-integration.sh
 
-# 3. Clone LLM Router and deploy with Helm
-git clone https://github.com/NVIDIA-AI-Blueprints/llm-router.git
-cd llm-router
-
-# 4. Create ConfigMap and deploy router
-kubectl create configmap router-config \
-  --from-file=config.yaml=../router-config.yaml \
-  -n llm-router
-
-helm upgrade --install llm-router deploy/helm/llm-router \
-  -f ../llm-router-values-override.yaml \
-  -n llm-router \
-  --create-namespace \
-  --wait --timeout=10m
-
-# 5. Test the integration
-kubectl port-forward svc/router-controller 8084:8084 -n llm-router &
-curl -X POST http://localhost:8084/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{"model":"","messages":[{"role":"user","content":"Write a Python function"}],"nim-llm-router":{"policy":"task_router"}}'
+# Or deploy components separately:
+./deploy-dynamo-integration.sh --dynamo-only    # Deploy only Dynamo
+./deploy-dynamo-integration.sh --router-only    # Deploy only LLM Router
+./deploy-dynamo-integration.sh --verify-only    # Verify existing deployment
 ```
 
-**All configuration files are provided in this directory - no manual file creation needed!**
+### Manual Deployment
+
+If you prefer manual deployment or need to customize the process:
+
+#### Step 1: Deploy NVIDIA Dynamo Cloud Platform
+
+```bash
+# 1. Clone Dynamo repository
+git clone https://github.com/ai-dynamo/dynamo.git
+cd dynamo
+
+# 2. Configure environment (edit dynamo-cloud-deployment.yaml first)
+export DOCKER_SERVER=nvcr.io/your-org
+export IMAGE_TAG=latest
+export NAMESPACE=dynamo-cloud
+export DOCKER_USERNAME=your-username
+export DOCKER_PASSWORD=your-password
+
+# 3. Build and push Dynamo components
+earthly --push +all-docker --DOCKER_SERVER=$DOCKER_SERVER --IMAGE_TAG=$IMAGE_TAG
+
+# 4. Deploy the platform
+kubectl create namespace $NAMESPACE
+kubectl config set-context --current --namespace=$NAMESPACE
+cd deploy/cloud/helm
+./deploy.sh --crds
+
+# 5. Deploy LLM inference graph
+kubectl apply -f ../../../dynamo-llm-deployment.yaml
+```
+
+#### Step 2: Deploy LLM Router
+
+```bash
+# 1. Create router namespace and ConfigMap
+kubectl create namespace llm-router
+kubectl create configmap router-config-dynamo \
+  --from-file=router-config-dynamo.yaml \
+  -n llm-router
+
+# 2. Add NVIDIA Helm repository
+helm repo add nvidia-llm-router https://helm.ngc.nvidia.com/nvidia-ai-blueprints/llm-router
+helm repo update
+
+# 3. Deploy LLM Router
+helm upgrade --install llm-router nvidia-llm-router/llm-router \
+  --namespace llm-router \
+  --values llm-router-values-override.yaml \
+  --wait --timeout=10m
+```
 
 ## Prerequisites
 
-- **Kubernetes cluster** (1.20+) with kubectl configured
+- **Kubernetes cluster** (1.24+) with kubectl configured
 - **Helm 3.x** for managing deployments
-- **Dynamo Cloud Operator** access and credentials
-- **NVIDIA GPU nodes** (with GPU Operator installed) 
-- **NVIDIA API keys** for model access through Dynamo cloud
+- **Earthly** for building Dynamo components ([Install Guide](https://earthly.dev/get-earthly))
+- **NVIDIA GPU nodes** with GPU Operator installed
+- **Container registry access** (NVIDIA NGC or private registry)
+- **Git** for cloning repositories
 
-## Step 1: Deploy NVIDIA Dynamo using Cloud Operator
+## Configuration
 
-### 1.1 Deploy Dynamo Cloud Operator
+### Dynamo Cloud Platform Configuration
 
-Deploy Dynamo using the official cloud operator for production-ready, scalable infrastructure:
+Edit `dynamo-cloud-deployment.yaml` to configure:
 
 ```bash
-# Install Dynamo Cloud Operator
-kubectl apply -f https://github.com/ai-dynamo/dynamo/releases/latest/download/dynamo-operator.yaml
+# Container Registry Configuration
+DOCKER_SERVER=nvcr.io/your-org          # Your container registry
+IMAGE_TAG=latest                        # Image tag to use
+DOCKER_USERNAME=your-username           # Registry username
+DOCKER_PASSWORD=your-password           # Registry password
 
-# Verify operator installation
-kubectl get pods -n dynamo-system
+# Dynamo Cloud Platform Configuration
+NAMESPACE=dynamo-cloud                   # Kubernetes namespace
+
+# External Access Configuration
+INGRESS_ENABLED=true                     # Enable ingress
+INGRESS_CLASS=nginx                      # Ingress class
 ```
 
-### 1.2 Deploy LLMs via Dynamo Cloud
+### LLM Model Configuration
 
-Choose from the provided configuration files based on your GPU availability:
+The `dynamo-llm-deployment.yaml` file defines a `DynamoGraphDeployment` with multiple services:
 
-```bash
-# For full production deployment (32 GPUs) - use provided file:
-kubectl apply -f dynamo-llm-config.yaml
+- **Frontend**: API gateway (1 replica)
+- **Processor**: Request processing (1 replica)
+- **VllmWorker**: Multi-model inference (1 replica, 4 GPUs)
+- **PrefillWorker**: Disaggregated prefill (2 replicas, 2 GPUs each)
+- **Router**: KV-aware routing (1 replica)
 
-# OR for minimal testing (1 GPU) - use provided file:
-kubectl apply -f dynamo-single-llm-config.yaml
-```
+**Total GPU Requirements**: 8 GPUs for models + 1 GPU for LLM Router = **9 GPUs**
 
-**🖥️ GPU Requirements Summary:**
-- **Full Configuration**: 32 GPUs for models + 1 GPU for Router Server = **33 GPUs total**
-- **Minimal Configuration**: 1 GPU for model + 1 GPU for Router Server = **2 GPUs total**
-- **Router Server**: Always requires 1 GPU for routing decisions and model orchestration
-- **Recommended for Production**: All models for comprehensive routing
+### Router Configuration
 
-### 1.3 Configuration Options
+The `router-config-dynamo.yaml` configures routing policies:
 
-**Configuration Comparison:**
+| **Task Router** | **Model** | **Use Case** |
+|-----------------|-----------|--------------|
+| Brainstorming | llama-3.1-70b-instruct | Creative ideation |
+| Chatbot | mixtral-8x22b-instruct | Conversational AI |
+| Code Generation | llama-3.1-nemotron-70b-instruct | Programming tasks |
+| Summarization | phi-3-mini-128k-instruct | Text summarization |
+| Text Generation | llama-3.2-11b-vision-instruct | General text creation |
+| Open QA | llama-3.1-405b-instruct | Complex questions |
+| Closed QA | llama-3.1-8b-instruct | Simple Q&A |
+| Classification | phi-3-mini-4k-instruct | Text classification |
+| Extraction | llama-3.1-8b-instruct | Information extraction |
+| Rewrite | phi-3-medium-128k-instruct | Text rewriting |
 
-| Configuration | GPUs | Models | Use Case | File |
-|--------------|------|--------|----------|------|
-| **Minimal** | 2 (1 model + 1 router) | 1 model | Development, Testing, Verification | `dynamo-single-llm-config.yaml` |
-| **Full** | 33 (32 models + 1 router) | 10 comprehensive models | Enterprise production, Maximum routing intelligence | `dynamo-llm-config.yaml` |
+| **Complexity Router** | **Model** | **Use Case** |
+|----------------------|-----------|--------------|
+| Creativity | llama-3.1-70b-instruct | Creative tasks |
+| Reasoning | llama-3.3-nemotron-super-49b | Complex reasoning |
+| Contextual-Knowledge | llama-3.1-405b-instruct | Knowledge-intensive |
+| Few-Shot | llama-3.1-70b-instruct | Few-shot learning |
+| Domain-Knowledge | llama-3.1-nemotron-70b-instruct | Specialized domains |
+| No-Label-Reason | llama-3.1-8b-instruct | Simple reasoning |
+| Constraint | phi-3-medium-128k-instruct | Constrained tasks |
 
-Both configuration files are provided in this repository - no manual creation needed!
+All routes point to: `http://dynamo-llm-service.dynamo-cloud.svc.cluster.local:8080/v1`
 
-### 1.4 Verify Dynamo Cloud Deployment
+## Verification and Testing
 
-```bash
-# Check Dynamo cluster status
-kubectl get dynamoclusters -n dynamo
-
-# Verify all models are deployed and ready
-kubectl get pods -n dynamo -l app=dynamo-model
-
-# Check model endpoints
-kubectl get svc -n dynamo
-
-# The LLM Router will connect to models through:
-# http://llm-cluster.dynamo.svc.cluster.local:8080
-```
-
-## Step 2: Deploy LLM Router with Official Helm Chart
-
-### 2.1 Download LLM Router
+### 1. Verify Dynamo Deployment
 
 ```bash
-# Clone the official LLM Router repository
-git clone https://github.com/NVIDIA-AI-Blueprints/llm-router.git
-cd llm-router
-```
+# Check Dynamo platform status
+kubectl get pods -n dynamo-cloud
+kubectl get dynamographdeployment -n dynamo-cloud
 
-### 2.2 Use Provided Helm Values Override
+# Check services
+kubectl get svc -n dynamo-cloud
 
-The repository includes a pre-configured Helm values override file (`llm-router-values-override.yaml`) that configures the LLM Router to work with Dynamo. This file includes:
-
-- Router Controller and Server configuration
-- Resource allocation (CPU, memory, GPU)
-- Security contexts and service accounts
-- Monitoring configuration
-- Integration with Dynamo endpoints
-
-No additional configuration needed - the file is ready to use.
-
-### 2.3 Use Provided Router Configuration
-
-The repository includes pre-configured router configuration files:
-
-- **`router-config-single.yaml`** - For single LLM verification (all routes point to one model)
-- **`router-config.yaml`** - For full production deployment with multiple models and intelligent routing
-
-Both files are ready to use - no manual creation needed!
-
-### 2.4 Deploy LLM Router with Helm
-
-```bash
-# For full production deployment:
-kubectl create configmap router-config \
-  --from-file=config.yaml=router-config.yaml \
-  -n llm-router
-
-# For single LLM verification:
-kubectl create configmap router-config \
-  --from-file=config.yaml=router-config-single.yaml \
-  -n llm-router
-
-# Deploy LLM Router using Helm with the provided values override
-helm upgrade --install llm-router deploy/helm/llm-router \
-  -f ../llm-router-values-override.yaml \
-  -n llm-router \
-  --create-namespace \
-  --wait --timeout=10m
-
-# Verify deployment
-kubectl get pods -n llm-router
-kubectl get svc -n llm-router
-```
-
-## Step 3: Verification and Testing
-
-### 3.1 Verify Dynamo LLM Endpoints
-
-```bash
-# Check Dynamo cluster status
-kubectl get dynamoclusters -n dynamo
-
-# Verify all models are deployed and ready
-kubectl get pods -n dynamo -l app=dynamo-model
-
-# Test direct LLM endpoint
-kubectl port-forward svc/llm-cluster 8080:8080 -n dynamo &
-
-# Test the LLM endpoint (in another terminal)
+# Test direct Dynamo endpoint
+kubectl port-forward svc/dynamo-llm-service 8080:8080 -n dynamo-cloud &
 curl -X POST http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "llama-3.1-8b-instruct",
-    "messages": [
-      {
-        "role": "user",
-        "content": "Hello, how are you?"
-      }
-    ],
+    "messages": [{"role": "user", "content": "Hello!"}],
     "max_tokens": 100
   }'
 ```
 
-### 3.2 Test LLM Router Integration
+### 2. Test LLM Router Integration
 
 ```bash
-# Port forward LLM Router controller
-kubectl port-forward svc/router-controller 8084:8084 -n llm-router &
+# Port forward LLM Router
+kubectl port-forward svc/llm-router 8080:8080 -n llm-router &
 
 # Test task-based routing
-curl -X 'POST' \
-  'http://localhost:8084/v1/chat/completions' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
+curl -X POST http://localhost:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
   -d '{
     "model": "",
-    "messages": [
-      {
-        "role": "user",
-        "content": "Write a Python function to calculate factorial"
-      }
-    ],
+    "messages": [{"role": "user", "content": "Write a Python function"}],
     "max_tokens": 512,
-    "stream": false,
     "nim-llm-router": {
-      "policy": "task_router",
-      "routing_strategy": "triton",
-      "model": ""
+      "policy": "task_router"
     }
   }'
 
 # Test complexity-based routing
-curl -X 'POST' \
-  'http://localhost:8084/v1/chat/completions' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
+curl -X POST http://localhost:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
   -d '{
     "model": "",
-    "messages": [
-      {
-        "role": "user",
-        "content": "Explain quantum computing in simple terms"
-      }
-    ],
+    "messages": [{"role": "user", "content": "Explain quantum computing"}],
     "max_tokens": 512,
-    "stream": false,
     "nim-llm-router": {
-      "policy": "complexity_router",
-      "routing_strategy": "triton",
-      "model": ""
+      "policy": "complexity_router"
     }
   }'
 ```
 
-### 3.3 Single LLM Verification Setup
-
-For testing with a minimal setup, use the provided configuration files:
+### 3. Monitor Deployment
 
 ```bash
-# Deploy single LLM using provided configuration
-kubectl apply -f dynamo-single-llm-config.yaml
+# Monitor Dynamo logs
+kubectl logs -f deployment/dynamo-store -n dynamo-cloud
 
-# Use the provided single LLM router configuration
-kubectl create configmap router-config \
-  --from-file=config.yaml=router-config-single.yaml \
-  -n llm-router \
-  --dry-run=client -o yaml | kubectl apply -f -
+# Monitor LLM Router logs
+kubectl logs -f deployment/llm-router -n llm-router
 
-# Restart router pods to pick up new configuration
-kubectl rollout restart deployment/router-controller -n llm-router
+# Check resource usage
+kubectl top pods -n dynamo-cloud
+kubectl top pods -n llm-router
 ```
 
-The provided `router-config-single.yaml` file configures all routing policies to point to the single LLM, making it perfect for verification that the routing mechanism works correctly.
+## How Dynamo Model Routing Works
+
+The key insight is that Dynamo provides a **single gateway endpoint** that routes to different models based on the `model` parameter in the OpenAI-compatible API request:
+
+1. **Single Endpoint**: `http://dynamo-llm-service.dynamo-cloud.svc.cluster.local:8080/v1`
+2. **Model-Based Routing**: Dynamo routes internally based on the `model` field in requests
+3. **OpenAI Compatibility**: Standard OpenAI API format with model selection
+
+Example request:
+```json
+{
+  "model": "llama-3.1-70b-instruct",  // Dynamo routes based on this
+  "messages": [...],
+  "temperature": 0.7
+}
+```
+
+Dynamo's internal architecture handles:
+- Model registry and discovery
+- Request parsing and routing
+- Load balancing across replicas
+- KV cache management
+- Disaggregated serving coordination
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Pods not starting**: Check GPU node availability and resource requests
-2. **Service communication**: Verify service discovery and DNS resolution
-3. **Model loading**: Verify NVIDIA API connectivity and quotas
+1. **Build failures**: Ensure earthly is installed and container registry access is configured
+2. **CRD not found**: Wait for Dynamo platform to fully deploy before applying DynamoGraphDeployment
+3. **Service communication**: Verify cross-namespace RBAC permissions
+4. **Model loading**: Check GPU availability and resource requests
 
 ### Debugging Commands
 
 ```bash
-# Check pod logs
-kubectl logs -f deployment/router-controller -n llm-router
-kubectl logs -f deployment/router-server -n llm-router
-kubectl logs -f deployment/dynamo-orchestrator -n dynamo
+# Check Dynamo platform
+kubectl get pods -n dynamo-cloud
+kubectl logs -f deployment/dynamo-store -n dynamo-cloud
+kubectl describe dynamographdeployment llm-multi-model -n dynamo-cloud
+
+# Check LLM Router
+kubectl get pods -n llm-router
+kubectl logs -f deployment/llm-router -n llm-router
+kubectl describe configmap router-config-dynamo -n llm-router
+
+# Check networking
+kubectl exec -it deployment/llm-router -n llm-router -- nslookup dynamo-llm-service.dynamo-cloud.svc.cluster.local
 
 # Check events
+kubectl get events -n dynamo-cloud --sort-by=.metadata.creationTimestamp
 kubectl get events -n llm-router --sort-by=.metadata.creationTimestamp
-kubectl get events -n dynamo --sort-by=.metadata.creationTimestamp
-
-# Check resource usage
-kubectl top pods -n llm-router
-kubectl top pods -n dynamo
-
-# Debug networking
-kubectl exec -it deployment/router-controller -n llm-router -- nslookup router-server
 ```
 
 ## Cleanup
-
-To remove the deployment:
 
 ```bash
 # Remove LLM Router
 helm uninstall llm-router -n llm-router
 kubectl delete namespace llm-router
 
-# Remove Dynamo LLMs
-kubectl delete dynamoclusters --all -n dynamo
-kubectl delete namespace dynamo
+# Remove Dynamo deployment
+kubectl delete dynamographdeployment llm-multi-model -n dynamo-cloud
+kubectl delete namespace dynamo-cloud
 
-# Remove Dynamo Operator (optional)
-kubectl delete -f https://github.com/ai-dynamo/dynamo/releases/latest/download/dynamo-operator.yaml
+# Remove Dynamo platform (if desired)
+cd dynamo/deploy/cloud/helm
+./deploy.sh --uninstall
 ```
 
 ## Files in This Directory
 
 - **`README.md`** - This comprehensive deployment guide
-- **`llm-router-values-override.yaml`** - Helm values override for LLM Router
-- **`router-config-single.yaml`** - Router configuration for single LLM verification (1 GPU)
-- **`router-config.yaml`** - Router configuration for full production deployment (32 GPUs)
-- **`dynamo-single-llm-config.yaml`** - Minimal Dynamo configuration for testing (1 GPU)
-- **`dynamo-llm-config.yaml`** - Full Dynamo configuration for production (32 GPUs)
+- **`dynamo-cloud-deployment.yaml`** - Environment configuration for Dynamo Cloud Platform
+- **`dynamo-llm-deployment.yaml`** - DynamoGraphDeployment for multi-LLM inference
+- **`router-config-dynamo.yaml`** - Router configuration for Dynamo integration
+- **`llm-router-values-override.yaml`** - Helm values override for LLM Router with Dynamo integration
+- **`deploy-dynamo-integration.sh`** - Automated deployment script
 
 ## Resources
 
+- [NVIDIA Dynamo Cloud Platform Documentation](https://docs.nvidia.com/dynamo/latest/guides/dynamo_deploy/dynamo_cloud.html)
+- [NVIDIA Dynamo Kubernetes Operator](https://docs.nvidia.com/dynamo/latest/guides/dynamo_deploy/dynamo_operator.html)
+- [NVIDIA Dynamo GitHub Repository](https://github.com/ai-dynamo/dynamo)
 - [LLM Router GitHub Repository](https://github.com/NVIDIA-AI-Blueprints/llm-router)
 - [LLM Router Helm Chart](https://github.com/NVIDIA-AI-Blueprints/llm-router/tree/main/deploy/helm/llm-router)
-- [NVIDIA Dynamo Cloud Deployment](https://github.com/ai-dynamo/dynamo/tree/main/deploy/cloud)
 - [Kubernetes Documentation](https://kubernetes.io/docs/)
 - [NVIDIA GPU Operator](https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/overview.html) 

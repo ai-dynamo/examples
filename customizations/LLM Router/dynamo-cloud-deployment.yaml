@@ -1,0 +1,57 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# NVIDIA Dynamo Cloud Platform Deployment Configuration
+# This file contains environment variables and configuration for deploying
+# the official NVIDIA Dynamo Cloud Platform
+#
+# Based on: https://docs.nvidia.com/dynamo/latest/guides/dynamo_deploy/dynamo_cloud.html
+
+# Container Registry Configuration
+DOCKER_SERVER=nvcr.io/your-org
+IMAGE_TAG=latest
+DOCKER_USERNAME=your-username
+DOCKER_PASSWORD=your-password
+
+# Dynamo Cloud Platform Configuration
+NAMESPACE=dynamo-cloud
+
+# Optional: Pipeline-specific registry (if different from platform registry)
+PIPELINES_DOCKER_SERVER=nvcr.io/your-org
+PIPELINES_DOCKER_USERNAME=your-username
+PIPELINES_DOCKER_PASSWORD=your-password
+
+# External Access Configuration (choose one)
+# Option 1: Ingress
+INGRESS_ENABLED=true
+INGRESS_CLASS=nginx
+
+# Option 2: Istio (alternative to Ingress)
+# ISTIO_ENABLED=true
+# ISTIO_GATEWAY=istio-system/istio-ingressgateway
+
+# Deployment Notes:
+# 1. Build and push Dynamo Cloud Platform components:
+#    earthly --push +all-docker --DOCKER_SERVER=$DOCKER_SERVER --IMAGE_TAG=$IMAGE_TAG
+#
+# 2. Deploy the platform:
+#    cd deploy/cloud/helm
+#    kubectl create namespace $NAMESPACE
+#    kubectl config set-context --current --namespace=$NAMESPACE
+#    ./deploy.sh --crds
+#
+# 3. Expose the platform:
+#    kubectl port-forward svc/dynamo-store <local-port>:80 -n $NAMESPACE
+#    export DYNAMO_CLOUD=http://localhost:<local-port> 

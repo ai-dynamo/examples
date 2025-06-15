@@ -13,7 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# LLM Router Helm Values Override for Dynamo Integration
+# LLM Router Helm Values for NVIDIA Dynamo Cloud Platform Integration
+# This configuration integrates the LLM Router with the official NVIDIA Dynamo deployment
 # Based on: https://github.com/NVIDIA-AI-Blueprints/llm-router/tree/main/deploy/helm/llm-router
 
 # Router Controller Configuration
@@ -28,14 +29,16 @@ routerController:
     type: ClusterIP
     port: 8084
   
-  # Configure to route to Dynamo instead of external APIs
+  # Configure to route to NVIDIA Dynamo Cloud Platform
   env:
     - name: LOG_LEVEL
       value: "INFO"
     - name: ENABLE_METRICS
       value: "true"
     - name: DYNAMO_ENDPOINT
-      value: "http://llm-cluster-single.dynamo.svc.cluster.local:8080"
+      value: "http://dynamo-llm-service.dynamo-cloud.svc.cluster.local:8080"
+    - name: DYNAMO_NAMESPACE
+      value: "dynamo-cloud"
   
   resources:
     requests:
@@ -75,14 +78,14 @@ routerServer:
       operator: Exists
       effect: NoSchedule
 
-# Configuration Map
+# Configuration Map for Router Policies
 config:
-  # The router configuration will be mounted from our custom config.yaml
+  # The router configuration will be mounted from router-config-dynamo.yaml
   mountPath: /app/config
   configMap:
-    name: router-config
+    name: router-config-dynamo
 
-# Ingress Configuration (disabled for verification)
+# Ingress Configuration (disabled for internal routing)
 ingress:
   enabled: false
 
@@ -113,4 +116,16 @@ securityContext:
 
 # Image Pull Secrets (if needed for private registries)
 imagePullSecrets: []
-  # - name: nvidia-registry-secret 
+  # - name: nvidia-registry-secret
+
+# Cross-namespace service access
+rbac:
+  create: true
+  rules:
+  - apiGroups: [""]
+    resources: ["services", "endpoints"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["services"]
+    resourceNames: ["dynamo-llm-service"]
+    verbs: ["get"] 
