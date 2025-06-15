@@ -1,0 +1,63 @@
+apiVersion: dynamo.ai/v1
+kind: DynamoCluster
+metadata:
+  name: llm-cluster
+  namespace: dynamo
+spec:
+  models:
+    # Task Router Models
+    - name: llama-3.1-70b-instruct
+      source: nvidia/Llama-3.1-70B-Instruct
+      replicas: 1
+      resources:
+        gpu: 4
+    - name: mixtral-8x22b-instruct
+      source: mistralai/Mixtral-8x22B-Instruct-v0.1
+      replicas: 1
+      resources:
+        gpu: 4
+    - name: llama-3.1-nemotron-70b-instruct
+      source: nvidia/Llama-3.1-Nemotron-70B-Instruct-HF
+      replicas: 1
+      resources:
+        gpu: 4
+    - name: phi-3-mini-128k-instruct
+      source: microsoft/Phi-3-mini-128k-instruct
+      replicas: 1
+      resources:
+        gpu: 1
+    - name: llama-3.2-11b-vision-instruct
+      source: meta-llama/Llama-3.2-11B-Vision-Instruct
+      replicas: 1
+      resources:
+        gpu: 2
+    - name: llama-3.1-405b-instruct
+      source: meta-llama/Llama-3.1-405B-Instruct
+      replicas: 1
+      resources:
+        gpu: 8
+    - name: llama-3.1-8b-instruct
+      source: meta-llama/Llama-3.1-8B-Instruct
+      replicas: 2
+      resources:
+        gpu: 1
+    - name: phi-3-mini-4k-instruct
+      source: microsoft/Phi-3-mini-4k-instruct
+      replicas: 1
+      resources:
+        gpu: 1
+    - name: phi-3-medium-128k-instruct
+      source: microsoft/Phi-3-medium-128k-instruct
+      replicas: 1
+      resources:
+        gpu: 2
+    # Complexity Router Models
+    - name: llama-3.3-nemotron-super-49b
+      source: nvidia/Llama-3.3-Nemotron-Super-49B
+      replicas: 1
+      resources:
+        gpu: 4
+  cloudConfig:
+    provider: nvidia
+    region: us-west-2
+    endpoint: https://api.dynamo.ai 

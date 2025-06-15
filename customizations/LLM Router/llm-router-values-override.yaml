@@ -1,0 +1,101 @@
+# LLM Router Helm Values Override for Dynamo Integration
+# Based on: https://github.com/NVIDIA-AI-Blueprints/llm-router/tree/main/deploy/helm/llm-router
+
+# Router Controller Configuration
+routerController:
+  replicaCount: 1
+  image:
+    repository: nvcr.io/nvidia/router-controller
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 8084
+  
+  # Configure to route to Dynamo instead of external APIs
+  env:
+    - name: LOG_LEVEL
+      value: "INFO"
+    - name: ENABLE_METRICS
+      value: "true"
+    - name: DYNAMO_ENDPOINT
+      value: "http://llm-cluster-single.dynamo.svc.cluster.local:8080"
+  
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+
+# Router Server Configuration  
+routerServer:
+  replicaCount: 1
+  image:
+    repository: nvcr.io/nvidia/router-server
+    tag: latest
+    pullPolicy: IfNotPresent
+    
+  service:
+    type: ClusterIP
+    port: 8000
+    
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 2Gi
+      nvidia.com/gpu: 1
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+      nvidia.com/gpu: 1
+      
+  nodeSelector:
+    nvidia.com/gpu.present: "true"
+    
+  tolerations:
+    - key: nvidia.com/gpu
+      operator: Exists
+      effect: NoSchedule
+
+# Configuration Map
+config:
+  # The router configuration will be mounted from our custom config.yaml
+  mountPath: /app/config
+  configMap:
+    name: router-config
+
+# Ingress Configuration (disabled for verification)
+ingress:
+  enabled: false
+
+# Monitoring
+monitoring:
+  prometheus:
+    enabled: true
+    port: 9090
+  grafana:
+    enabled: false  # Use existing monitoring stack if available
+
+# Security
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podSecurityContext:
+  fsGroup: 2000
+
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: false  # Router may need to write temporary files
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Image Pull Secrets (if needed for private registries)
+imagePullSecrets: []
+  # - name: nvidia-registry-secret 

@@ -1,0 +1,17 @@
+apiVersion: dynamo.ai/v1
+kind: DynamoCluster
+metadata:
+  name: llm-cluster-single
+  namespace: dynamo
+spec:
+  models:
+    # Single model for verification
+    - name: llama-3.1-8b-instruct
+      source: meta-llama/Llama-3.1-8B-Instruct
+      replicas: 1
+      resources:
+        gpu: 1
+  cloudConfig:
+    provider: nvidia
+    region: us-west-2
+    endpoint: https://api.dynamo.ai 
