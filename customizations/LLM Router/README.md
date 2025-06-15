@@ -20,81 +20,13 @@ The integration consists of:
 
 ### Key Components
 
-- **dynamo-cloud-deployment.yaml**: Configuration for Dynamo Cloud Platform deployment
 - **dynamo-llm-deployment.yaml**: DynamoGraphDeployment for multi-LLM inference
-- **router-config-dynamo.yaml**: Router policies for Dynamo integration
-- **llm-router-values-dynamo.yaml**: Helm values for LLM Router with Dynamo
-- **deploy-dynamo-integration.sh**: Automated deployment script
-
-## Quick Start
-
-### Automated Deployment (Recommended)
-
-```bash
-# Make the script executable
-chmod +x deploy-dynamo-integration.sh
-
-# Deploy everything (Dynamo + LLM Router)
-./deploy-dynamo-integration.sh
-
-# Or deploy components separately:
-./deploy-dynamo-integration.sh --dynamo-only    # Deploy only Dynamo
-./deploy-dynamo-integration.sh --router-only    # Deploy only LLM Router
-./deploy-dynamo-integration.sh --verify-only    # Verify existing deployment
-```
-
-### Manual Deployment
-
-If you prefer manual deployment or need to customize the process:
-
-#### Step 1: Deploy NVIDIA Dynamo Cloud Platform
-
-```bash
-# 1. Clone Dynamo repository
-git clone https://github.com/ai-dynamo/dynamo.git
-cd dynamo
-
-# 2. Configure environment (edit dynamo-cloud-deployment.yaml first)
-export DOCKER_SERVER=nvcr.io/your-org
-export IMAGE_TAG=latest
-export NAMESPACE=dynamo-cloud
-export DOCKER_USERNAME=your-username
-export DOCKER_PASSWORD=your-password
-
-# 3. Build and push Dynamo components
-earthly --push +all-docker --DOCKER_SERVER=$DOCKER_SERVER --IMAGE_TAG=$IMAGE_TAG
-
-# 4. Deploy the platform
-kubectl create namespace $NAMESPACE
-kubectl config set-context --current --namespace=$NAMESPACE
-cd deploy/cloud/helm
-./deploy.sh --crds
-
-# 5. Deploy LLM inference graph
-kubectl apply -f ../../../dynamo-llm-deployment.yaml
-```
-
-#### Step 2: Deploy LLM Router
-
-```bash
-# 1. Create router namespace and ConfigMap
-kubectl create namespace llm-router
-kubectl create configmap router-config-dynamo \
-  --from-file=router-config-dynamo.yaml \
-  -n llm-router
-
-# 2. Add NVIDIA Helm repository
-helm repo add nvidia-llm-router https://helm.ngc.nvidia.com/nvidia-ai-blueprints/llm-router
-helm repo update
-
-# 3. Deploy LLM Router
-helm upgrade --install llm-router nvidia-llm-router/llm-router \
-  --namespace llm-router \
-  --values llm-router-values-override.yaml \
-  --wait --timeout=10m
-```
+- **router-config-dynamo.yaml**: Router policies for Dynamo integration  
+- **llm-router-values-override.yaml**: Helm values for LLM Router with Dynamo integration
 
 ## Prerequisites
+
+Before starting the deployment, ensure you have:
 
 - **Kubernetes cluster** (1.24+) with kubectl configured
 - **Helm 3.x** for managing deployments
@@ -103,30 +35,23 @@ helm upgrade --install llm-router nvidia-llm-router/llm-router \
 - **Container registry access** (NVIDIA NGC or private registry)
 - **Git** for cloning repositories
 
-## Configuration
+### Environment Variables
 
-### Dynamo Cloud Platform Configuration
+You'll need to configure these environment variables before deployment:
 
-Edit `dynamo-cloud-deployment.yaml` to configure:
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DOCKER_SERVER` | Your container registry URL | `nvcr.io/your-org` |
+| `IMAGE_TAG` | Image tag to use | `latest` or `v1.0.0` |
+| `DOCKER_USERNAME` | Registry username | `your-username` |
+| `DOCKER_PASSWORD` | Registry password/token | `your-password` |
+| `NAMESPACE` | Kubernetes namespace | `dynamo-cloud` |
 
-```bash
-# Container Registry Configuration
-DOCKER_SERVER=nvcr.io/your-org          # Your container registry
-IMAGE_TAG=latest                        # Image tag to use
-DOCKER_USERNAME=your-username           # Registry username
-DOCKER_PASSWORD=your-password           # Registry password
+### Resource Requirements
 
-# Dynamo Cloud Platform Configuration
-NAMESPACE=dynamo-cloud                   # Kubernetes namespace
+**Total GPU Requirements**: 8 GPUs for models + 1 GPU for LLM Router = **9 GPUs**
 
-# External Access Configuration
-INGRESS_ENABLED=true                     # Enable ingress
-INGRESS_CLASS=nginx                      # Ingress class
-```
-
-### LLM Model Configuration
-
-The `dynamo-llm-deployment.yaml` file defines a `DynamoGraphDeployment` with multiple services:
+The `dynamo-llm-deployment.yaml` file defines a `DynamoGraphDeployment` with:
 
 - **Frontend**: API gateway (1 replica)
 - **Processor**: Request processing (1 replica)
@@ -134,7 +59,129 @@ The `dynamo-llm-deployment.yaml` file defines a `DynamoGraphDeployment` with mul
 - **PrefillWorker**: Disaggregated prefill (2 replicas, 2 GPUs each)
 - **Router**: KV-aware routing (1 replica)
 
-**Total GPU Requirements**: 8 GPUs for models + 1 GPU for LLM Router = **9 GPUs**
+## Deployment Guide
+
+This guide walks you through deploying NVIDIA Dynamo Cloud Platform and LLM Router step by step.
+
+### Step 1: Prepare Your Environment
+
+First, ensure you have all prerequisites and configure your environment variables:
+
+```bash
+# Configure your container registry credentials
+export DOCKER_SERVER=nvcr.io/your-org          # Replace with your registry URL
+export IMAGE_TAG=latest                        # Or specific version tag
+export NAMESPACE=dynamo-cloud                   # Kubernetes namespace for Dynamo
+export DOCKER_USERNAME=your-username           # Replace with your registry username
+export DOCKER_PASSWORD=your-password           # Replace with your registry password
+
+# Verify your configuration
+echo "Registry: $DOCKER_SERVER"
+echo "Namespace: $NAMESPACE"
+echo "Image Tag: $IMAGE_TAG"
+```
+
+### Step 2: Deploy NVIDIA Dynamo Cloud Platform
+
+```bash
+# 1. Clone the official Dynamo repository
+git clone https://github.com/ai-dynamo/dynamo.git
+cd dynamo
+
+# 2. Build and push Dynamo components to your registry
+earthly --push +all-docker --DOCKER_SERVER=$DOCKER_SERVER --IMAGE_TAG=$IMAGE_TAG
+
+# 3. Create namespace and set context
+kubectl create namespace $NAMESPACE
+kubectl config set-context --current --namespace=$NAMESPACE
+
+# 4. Deploy the Dynamo Cloud Platform
+cd deploy/cloud/helm
+./deploy.sh --crds
+
+# 5. Wait for platform to be ready
+kubectl wait --for=condition=ready pod -l app=dynamo-store --timeout=300s
+
+# 6. Verify platform deployment
+kubectl get pods -n $NAMESPACE
+kubectl get crd | grep dynamo
+```
+
+### Step 3: Deploy LLM Inference Services
+
+```bash
+# 1. Navigate back to your configuration directory
+cd /path/to/your/llm-router-config
+
+# 2. Review and customize the LLM deployment
+# Edit dynamo-llm-deployment.yaml to adjust:
+# - Model selection in VllmWorker
+# - GPU resource requirements
+# - Replica counts
+
+# 3. Deploy the LLM inference graph
+kubectl apply -f dynamo-llm-deployment.yaml
+
+# 4. Wait for LLM services to be ready
+kubectl wait --for=condition=ready pod -l dynamo-component=Frontend --timeout=600s
+
+# 5. Verify LLM deployment
+kubectl get dynamographdeployment -n dynamo-cloud
+kubectl get pods -n dynamo-cloud
+kubectl get svc dynamo-llm-service -n dynamo-cloud
+```
+
+### Step 4: Deploy LLM Router
+
+```bash
+# 1. Create the LLM Router namespace
+kubectl create namespace llm-router
+
+# 2. Create ConfigMap for router configuration
+kubectl create configmap router-config-dynamo \
+  --from-file=router-config-dynamo.yaml \
+  -n llm-router
+
+# 3. Verify ConfigMap was created correctly
+kubectl describe configmap router-config-dynamo -n llm-router
+
+# 4. Add the official NVIDIA LLM Router Helm repository
+helm repo add nvidia-llm-router https://helm.ngc.nvidia.com/nvidia-ai-blueprints/llm-router
+helm repo update
+
+# 5. Review and customize the Helm values
+# Edit llm-router-values-override.yaml to adjust:
+# - Ingress hostname (change llm-router.local to your domain)
+# - Resource requirements
+# - GPU allocation
+
+# 6. Deploy LLM Router using Helm
+helm upgrade --install llm-router nvidia-llm-router/llm-router \
+  --namespace llm-router \
+  --values llm-router-values-override.yaml \
+  --wait --timeout=10m
+
+# 7. Verify LLM Router deployment
+kubectl get pods -n llm-router
+kubectl get svc -n llm-router
+kubectl get ingress -n llm-router
+```
+
+### Step 5: Configure External Access
+
+```bash
+# Option 1: For production with real domain
+# Update your DNS to point to the ingress controller's external IP
+INGRESS_IP=$(kubectl get ingress llm-router -n llm-router -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+echo "Configure DNS: your-domain.com -> $INGRESS_IP"
+
+# Option 2: For local testing
+# Add entry to /etc/hosts file
+INGRESS_IP=$(kubectl get ingress llm-router -n llm-router -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+echo "$INGRESS_IP llm-router.local" | sudo tee -a /etc/hosts
+```
+
+## Configuration
 
 ### Ingress Configuration
 
@@ -364,11 +411,9 @@ cd dynamo/deploy/cloud/helm
 ## Files in This Directory
 
 - **`README.md`** - This comprehensive deployment guide
-- **`dynamo-cloud-deployment.yaml`** - Environment configuration for Dynamo Cloud Platform
 - **`dynamo-llm-deployment.yaml`** - DynamoGraphDeployment for multi-LLM inference
 - **`router-config-dynamo.yaml`** - Router configuration for Dynamo integration
 - **`llm-router-values-override.yaml`** - Helm values override for LLM Router with Dynamo integration
-- **`deploy-dynamo-integration.sh`** - Automated deployment script
 
 ## Resources
 
