@@ -136,6 +136,36 @@ The `dynamo-llm-deployment.yaml` file defines a `DynamoGraphDeployment` with mul
 
 **Total GPU Requirements**: 8 GPUs for models + 1 GPU for LLM Router = **9 GPUs**
 
+### Ingress Configuration
+
+The LLM Router is configured with ingress enabled for external access:
+
+```yaml
+ingress:
+  enabled: true
+  className: "nginx"  # Adjust for your ingress controller
+  hosts:
+    - host: llm-router.local  # Change to your domain
+      paths:
+        - path: /
+          pathType: Prefix
+```
+
+**Important**: Update the `host` field in `llm-router-values-override.yaml` to match your domain:
+
+```bash
+# For production, replace llm-router.local with your actual domain
+sed -i 's/llm-router.local/your-domain.com/g' llm-router-values-override.yaml
+```
+
+**For local testing**, add the ingress IP to your `/etc/hosts`:
+
+```bash
+# Get the ingress IP and add to hosts file
+INGRESS_IP=$(kubectl get ingress llm-router -n llm-router -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+echo "$INGRESS_IP llm-router.local" | sudo tee -a /etc/hosts
+```
+
 ### Router Configuration
 
 The `router-config-dynamo.yaml` configures routing policies:
@@ -191,10 +221,26 @@ curl -X POST http://localhost:8080/v1/chat/completions \
 ### 2. Test LLM Router Integration
 
 ```bash
-# Port forward LLM Router
-kubectl port-forward svc/llm-router 8080:8080 -n llm-router &
+# Option 1: Test via Ingress (recommended for production)
+# First, add llm-router.local to your /etc/hosts file:
+# echo "$(kubectl get ingress llm-router -n llm-router -o jsonpath='{.status.loadBalancer.ingress[0].ip}') llm-router.local" | sudo tee -a /etc/hosts
 
-# Test task-based routing
+# Test task-based routing via ingress
+curl -X POST http://llm-router.local/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "",
+    "messages": [{"role": "user", "content": "Write a Python function"}],
+    "max_tokens": 512,
+    "nim-llm-router": {
+      "policy": "task_router"
+    }
+  }'
+
+# Option 2: Test via port-forward (for development/testing)
+kubectl port-forward svc/llm-router 8080:8000 -n llm-router &
+
+# Test task-based routing via port-forward
 curl -X POST http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
@@ -206,7 +252,19 @@ curl -X POST http://localhost:8080/v1/chat/completions \
     }
   }'
 
-# Test complexity-based routing
+# Test complexity-based routing via ingress
+curl -X POST http://llm-router.local/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "",
+    "messages": [{"role": "user", "content": "Explain quantum computing"}],
+    "max_tokens": 512,
+    "nim-llm-router": {
+      "policy": "complexity_router"
+    }
+  }'
+
+# Test complexity-based routing via port-forward
 curl -X POST http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{

@@ -85,9 +85,30 @@ config:
   configMap:
     name: router-config-dynamo
 
-# Ingress Configuration (disabled for internal routing)
+# Ingress Configuration (enabled for external access)
 ingress:
-  enabled: false
+  enabled: true
+  className: "nginx"  # Use your cluster's ingress class
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+  hosts:
+    - host: llm-router.local  # Change to your domain
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: llm-router
+              port:
+                number: 8000
+  tls: []
+    # - secretName: llm-router-tls
+    #   hosts:
+    #     - llm-router.your-domain.com
 
 # Monitoring
 monitoring:
