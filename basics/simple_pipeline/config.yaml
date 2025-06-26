@@ -1,0 +1,12 @@
+Backend:
+  greeting: "Goodnight"
+  sleep_time: 1
+  ServiceArgs:
+    workers: 2
+
+Frontend:
+  routing_mode: "round_robin"
+  ServiceArgs:
+    workers: 1
+
+
