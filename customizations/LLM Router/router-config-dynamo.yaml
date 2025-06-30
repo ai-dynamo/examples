@@ -18,88 +18,97 @@
 # deployment using the proper service endpoints
 #
 # Based on: https://docs.nvidia.com/dynamo/latest/guides/dynamo_deploy/dynamo_cloud.html
+# API Key pattern follows: https://github.com/NVIDIA-AI-Blueprints/llm-router/blob/main/deploy/helm/llm-router/templates/router-controller-configmap.yaml
+#
+# NOTE: Environment variables are resolved at runtime:
+# - ${DYNAMO_API_BASE}: Points to the Dynamo service endpoint
+# - ${DYNAMO_API_KEY}: API key for authenticating with Dynamo services
+#
+# These variables are populated from:
+# - ConfigMap: DYNAMO_API_BASE (defined in llm-router-values-override.yaml)
+# - Secret: DYNAMO_API_KEY (created during deployment setup)
 
 policies:
   - name: "task_router"
     url: http://router-server:8000/v2/models/task_router_ensemble/infer
     llms:
       - name: Brainstorming
-        api_base: http://dynamo-llm-service.dynamo-cloud.svc.cluster.local:8080/v1
-        api_key: ""
+        api_base: ${DYNAMO_API_BASE}/v1
+        api_key: "${DYNAMO_API_KEY}"
         model: llama-3.1-70b-instruct
       - name: Chatbot
-        api_base: http://dynamo-llm-service.dynamo-cloud.svc.cluster.local:8080/v1
-        api_key: ""
+        api_base: ${DYNAMO_API_BASE}/v1
+        api_key: "${DYNAMO_API_KEY}"
         model: mixtral-8x22b-instruct
       - name: "Code Generation"
-        api_base: http://dynamo-llm-service.dynamo-cloud.svc.cluster.local:8080/v1
-        api_key: ""
+        api_base: ${DYNAMO_API_BASE}/v1
+        api_key: "${DYNAMO_API_KEY}"
         model: llama-3.1-nemotron-70b-instruct
       - name: Summarization
-        api_base: http://dynamo-llm-service.dynamo-cloud.svc.cluster.local:8080/v1
-        api_key: ""
+        api_base: ${DYNAMO_API_BASE}/v1
+        api_key: "${DYNAMO_API_KEY}"
         model: phi-3-mini-128k-instruct
       - name: "Text Generation"
-        api_base: http://dynamo-llm-service.dynamo-cloud.svc.cluster.local:8080/v1
-        api_key: ""
+        api_base: ${DYNAMO_API_BASE}/v1
+        api_key: "${DYNAMO_API_KEY}"
         model: llama-3.2-11b-vision-instruct
       - name: "Open QA"
-        api_base: http://dynamo-llm-service.dynamo-cloud.svc.cluster.local:8080/v1
-        api_key: ""
+        api_base: ${DYNAMO_API_BASE}/v1
+        api_key: "${DYNAMO_API_KEY}"
         model: llama-3.1-405b-instruct
       - name: "Closed QA"
-        api_base: http://dynamo-llm-service.dynamo-cloud.svc.cluster.local:8080/v1
-        api_key: ""
+        api_base: ${DYNAMO_API_BASE}/v1
+        api_key: "${DYNAMO_API_KEY}"
         model: llama-3.1-8b-instruct
       - name: Classification
-        api_base: http://dynamo-llm-service.dynamo-cloud.svc.cluster.local:8080/v1
-        api_key: ""
+        api_base: ${DYNAMO_API_BASE}/v1
+        api_key: "${DYNAMO_API_KEY}"
         model: phi-3-mini-4k-instruct
       - name: Extraction
-        api_base: http://dynamo-llm-service.dynamo-cloud.svc.cluster.local:8080/v1
-        api_key: ""
+        api_base: ${DYNAMO_API_BASE}/v1
+        api_key: "${DYNAMO_API_KEY}"
         model: llama-3.1-8b-instruct
       - name: Rewrite
-        api_base: http://dynamo-llm-service.dynamo-cloud.svc.cluster.local:8080/v1
-        api_key: ""
+        api_base: ${DYNAMO_API_BASE}/v1
+        api_key: "${DYNAMO_API_KEY}"
         model: phi-3-medium-128k-instruct
       - name: Other
-        api_base: http://dynamo-llm-service.dynamo-cloud.svc.cluster.local:8080/v1
-        api_key: ""
+        api_base: ${DYNAMO_API_BASE}/v1
+        api_key: "${DYNAMO_API_KEY}"
         model: llama-3.1-70b-instruct
       - name: Unknown
-        api_base: http://dynamo-llm-service.dynamo-cloud.svc.cluster.local:8080/v1
-        api_key: ""
+        api_base: ${DYNAMO_API_BASE}/v1
+        api_key: "${DYNAMO_API_KEY}"
         model: llama-3.1-8b-instruct
 
   - name: "complexity_router"
     url: http://router-server:8000/v2/models/complexity_router_ensemble/infer
     llms:
       - name: Creativity
-        api_base: http://dynamo-llm-service.dynamo-cloud.svc.cluster.local:8080/v1
-        api_key: ""
+        api_base: ${DYNAMO_API_BASE}/v1
+        api_key: "${DYNAMO_API_KEY}"
         model: llama-3.1-70b-instruct
       - name: Reasoning
-        api_base: http://dynamo-llm-service.dynamo-cloud.svc.cluster.local:8080/v1
-        api_key: ""
+        api_base: ${DYNAMO_API_BASE}/v1
+        api_key: "${DYNAMO_API_KEY}"
         model: llama-3.3-nemotron-super-49b
       - name: "Contextual-Knowledge"
-        api_base: http://dynamo-llm-service.dynamo-cloud.svc.cluster.local:8080/v1
-        api_key: ""
+        api_base: ${DYNAMO_API_BASE}/v1
+        api_key: "${DYNAMO_API_KEY}"
         model: llama-3.1-405b-instruct
       - name: "Few-Shot"
-        api_base: http://dynamo-llm-service.dynamo-cloud.svc.cluster.local:8080/v1
-        api_key: ""
+        api_base: ${DYNAMO_API_BASE}/v1
+        api_key: "${DYNAMO_API_KEY}"
         model: llama-3.1-70b-instruct
       - name: "Domain-Knowledge"
-        api_base: http://dynamo-llm-service.dynamo-cloud.svc.cluster.local:8080/v1
-        api_key: ""
+        api_base: ${DYNAMO_API_BASE}/v1
+        api_key: "${DYNAMO_API_KEY}"
         model: llama-3.1-nemotron-70b-instruct
       - name: "No-Label-Reason"
-        api_base: http://dynamo-llm-service.dynamo-cloud.svc.cluster.local:8080/v1
-        api_key: ""
+        api_base: ${DYNAMO_API_BASE}/v1
+        api_key: "${DYNAMO_API_KEY}"
         model: llama-3.1-8b-instruct
       - name: Constraint
-        api_base: http://dynamo-llm-service.dynamo-cloud.svc.cluster.local:8080/v1
-        api_key: ""
+        api_base: ${DYNAMO_API_BASE}/v1
+        api_key: "${DYNAMO_API_KEY}"
         model: phi-3-medium-128k-instruct 

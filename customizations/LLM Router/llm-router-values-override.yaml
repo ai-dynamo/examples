@@ -16,6 +16,18 @@
 # LLM Router Helm Values for NVIDIA Dynamo Cloud Platform Integration
 # This configuration integrates the LLM Router with the official NVIDIA Dynamo deployment
 # Based on: https://github.com/NVIDIA-AI-Blueprints/llm-router/tree/main/deploy/helm/llm-router
+# 
+# Pure Kubernetes-Native Approach: Uses ConfigMaps for configuration
+# 
+# IMPORTANT: Update the api_base URL to match your Dynamo deployment
+# This should point to your actual Dynamo service endpoint
+
+# Dynamo Configuration - will be created as ConfigMap
+dynamoConfig:
+  api_base: "http://dynamo-llm-service.dynamo-cloud.svc.cluster.local:8080"
+  namespace: "dynamo-cloud"
+  # For external Dynamo deployments, use:
+  # api_base: "https://your-dynamo-endpoint.com"
 
 # Router Controller Configuration
 routerController:
@@ -29,16 +41,23 @@ routerController:
     type: ClusterIP
     port: 8084
   
-  # Configure to route to NVIDIA Dynamo Cloud Platform
+  # Configure environment variables from ConfigMap and Secrets
   env:
     - name: LOG_LEVEL
       value: "INFO"
     - name: ENABLE_METRICS
       value: "true"
     - name: DYNAMO_ENDPOINT
-      value: "http://dynamo-llm-service.dynamo-cloud.svc.cluster.local:8080"
+      value: "{{ .Values.dynamoConfig.api_base }}"
     - name: DYNAMO_NAMESPACE
-      value: "dynamo-cloud"
+      value: "{{ .Values.dynamoConfig.namespace }}"
+    - name: DYNAMO_API_BASE
+      value: "{{ .Values.dynamoConfig.api_base }}"
+    - name: DYNAMO_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: dynamo-api-secret
+          key: DYNAMO_API_KEY
   
   resources:
     requests:
@@ -96,7 +115,7 @@ ingress:
     nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
   hosts:
-    - host: llm-router.local  # Change to your domain
+    - host: llm-router.local  # CHANGE THIS: Replace with your actual domain
       paths:
         - path: /
           pathType: Prefix
@@ -104,7 +123,7 @@ ingress:
             service:
               name: llm-router
               port:
-                number: 8000
+                number: 8000  # Router service port
   tls: []
     # - secretName: llm-router-tls
     #   hosts:
