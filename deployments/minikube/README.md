@@ -31,14 +31,11 @@ The Dynamo GitHub repository will be leveraged extensively throughout this walkt
 
 ```bash
 
-Clone Dynamo GitHub repo
+# clone Dynamo GitHub repo
 git clone https://github.com/ai-dynamo/dynamo.git
 
-Go to root of Dynamo repo
+# go to root of Dynamo repo
 cd dynamo
-
-Checkout to version of Dynamo this example can be run on
-git checkout eec345aacb6affb167aece3c719d907be545db43
 ```
 
 ---
@@ -70,11 +67,8 @@ To run Minikube, you'll need:
 If your machine has NVIDIA drivers, run the optional command below. Start the cluster:
 
 ```bash
-#Start Minikube cluster with GPUs
-minikube start --driver=docker --container-runtime=docker --gpus=all --force
-
-#Update DNS within Docker to allow internet access
-echo -e "options rotate\noptions timeout:1\nnameserver 8.8.8.8" | ssh -o "StrictHostKeyChecking no" -i $(minikube ssh-key) docker@$(minikube ip) -T "sudo tee -a /etc/resolv.conf"
+# Start Minikube cluster with GPUs, NOTE: Potentially add --force flag to force minikube to use all available gpus
+minikube start --driver=docker --container-runtime=docker --gpus=all 
 
 # Optional: Unmount /proc/driver/nvidia if machine has preinstalled drivers
 ssh -o "StrictHostKeyChecking no" -i $(minikube ssh-key) docker@$(minikube ip) "sudo umount -R /proc/driver/nvidia"
@@ -82,27 +76,22 @@ ssh -o "StrictHostKeyChecking no" -i $(minikube ssh-key) docker@$(minikube ip) "
 
 ---
 
-### Install GPU Operator
+### Accessing GPU Resources In Kubernetes
 
-The NVIDIA GPU Operator is needed to run GPU-accelerated applications and microservices in Kubernetes.
+In the event that NVIDIA drivers are preinstalled on the target compute instance we'll be running Dynamo related workloads on, specifying the GPU flags in the `minikube start` command will automatically bring up NVIDIA device plugin pods. The [NVIDIA device plugin](https://github.com/NVIDIA/k8s-device-plugin) lets Kubernetes detect and allocate NVIDIA GPUs to pods, enabling GPU-accelerated workloads. Without it, Kubernetes can't schedule GPUs for containers.
+
+Once the device plugin pods are in a running state we can proceed with running GPU workloads in the minikube cluster. Please note depending on your cluster setup, you might manually have to install the NVIDIA device plugin, or the [NVIDIA GPU Operator](https://github.com/NVIDIA/gpu-operator) which is preferred over just the NVIDIA device plugin especially for production or large-scale Kubernetes environments, as the GPU Operator automates the installation and management of GPU drivers, the device plugin, monitoring, and other GPU software on Kubernetes nodes. We can verify the device plugin pods are running by checking pod status in the `kube-system` namespace:
+
+
 
 ```bash
-# add nvidia helm repo
-helm repo add nvidia https://helm.ngc.nvidia.com/nvidia && helm repo update
+# check status of device plugin pod
+kubectl get pods -n kube-system
 
-# install gpu-operator (assuming drivers are already installed)
-helm install --generate-name
--n gpu-operator --create-namespace
-nvidia/gpu-operator
---set driver.enabled=false
---set validator.driver.env.name=DISABLE_DEV_CHAR_SYMLINK_CREATION
---set-string validator.driver.env.value=true
-
-# if drivers are not installed and you want GPU Operator to manage them
-helm install --generate-name -n gpu-operator --create-namespace nvidia/gpu-operator
-
-# verify GPU Operator pods are running
-kubectl get pods -n gpu-operator
+# output is truncated to only show device plugin pods
+NAME                                   READY   STATUS    RESTARTS      AGE
+...
+nvidia-device-plugin-daemonset-hvd5x   1/1     Running   0             1d
 ```
 
 ---
@@ -117,6 +106,12 @@ minikube addons enable ingress
 
 # verify pods are running
 kubectl get pods -n ingress-nginx
+
+# output should be similar
+NAME                                        READY   STATUS      RESTARTS   AGE
+ingress-nginx-admission-create-wnv5m        0/1     Completed   0          1d
+ingress-nginx-admission-patch-977pp         0/1     Completed   0          1d
+ingress-nginx-controller-768f948f8f-gg8vd   1/1     Running     0          1d
 ```
 
 ---
@@ -130,6 +125,8 @@ Ensure the cluster has access to a default storage class. Dynamo Cloud requires 
 kubectl get storageclass
 
 # Output should show (default) flag next to storage class
+NAME                 PROVISIONER                RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEXPANSION   AGE
+standard (default)   k8s.io/minikube-hostpath   Delete          Immediate           false                  1d
 ```
 
 ---
@@ -157,16 +154,15 @@ export DOCKER_SERVER=${CONTAINER_REGISTRY}/${DOCKER_ORGANIZATION}
 # Set the image tag (e.g., latest, 0.0.1, etc.)
 export IMAGE_TAG=1.0.0
 
-# Set your Docker password
-export DOCKER_PASSWORD=<YOUR_DOCKER_PASSWORD>
+# Uncomment below and Set your Docker username and password
+#export DOCKER_USERNAME=<YOUR_DOCKER_USERNAME>
+#export DOCKER_PASSWORD=<YOUR_DOCKER_PASSWORD>
 ```
 
 Login to your registry:
 
 ```bash
 docker login ${CONTAINER_REGISTRY}
-Username: <YOUR_DOCKER_USERNAME>
-Password: <YOUR_DOCKER_PASSWORD>
 ```
 
 Build and push the API Store and Operator images:
@@ -178,47 +174,31 @@ cd deploy/cloud/api-store
 earthly --push +docker --DOCKER_SERVER=$DOCKER_SERVER --IMAGE_TAG=$IMAGE_TAG
 
 # build the dynamo operator
-cd deploy/cloud/operator
+cd ../operator
 earthly --push +docker --DOCKER_SERVER=$DOCKER_SERVER --IMAGE_TAG=$IMAGE_TAG
 ```
 ---
 
 ### Deploying the Dynamo Cloud Platform
 
-Navigate to the helm directory and set environment variables:
+Navigate to the helm directory and set environment variables, we'll configure the namespace dynamo cloud will be deployed in:
 
 ```bash
-cd deploy/cloud/helm
-
+cd ../helm
 export PROJECT_ROOT=$(pwd)
-export DOCKER_USERNAME=<YOUR_DOCKER_USERNAME>
-export DOCKER_PASSWORD=<YOUR_DOCKER_PASSWORD>
-export DOCKER_ORGANIZATION=<YOUR_DOCKER_ORGANIZATION_ID>
-export DOCKER_REGISTRY=<YOUR_DOCKER_REGISTRY>
-export DOCKER_SERVER=$DOCKER_REGISTRY/$DOCKER_ORGANIZATION
-export IMAGE_TAG=1.0.0
 export NAMESPACE=dynamo-cloud
 ```
 
-Create the namespace and image pull secrets:
+Create the namespace and set it as the default cluster context:
 
 ```bash
 kubectl create namespace $NAMESPACE
 kubectl config set-context --current --namespace=$NAMESPACE
-
-kubectl create secret docker-registry docker-imagepullsecret \
-  --docker-server=$DOCKER_SERVER \
-  --docker-username=$DOCKER_USERNAME \
-  --docker-password=$DOCKER_PASSWORD \
-  --namespace=$NAMESPACE
 ```
 
 Run the deploy script:
 
 ```bash
-# run script in interactive mode to verify checks
-./deploy.sh --crds --interactive
-
 # install CRDs first, then platform
 ./deploy.sh --crds
 ```
@@ -226,14 +206,26 @@ Run the deploy script:
 Check pod status:
 
 ```bash
+# view dynamo cloud pods
 kubectl get pods -n $NAMESPACE
+
+# output should be similar
+NAME                                                              READY   STATUS             RESTARTS     AGE
+dynamo-cloud-dynamo-api-store-54bfd67cfd-8j5jk                    1/1     Running            0            66s
+dynamo-cloud-dynamo-operator-buildkitd-0                          1/1     Running            0            66s
+dynamo-cloud-dynamo-operator-controller-manager-99b6469dc-s2gh4   2/2     Running            0            66s
+dynamo-cloud-etcd-0                                               1/1     Running            0            66s
+dynamo-cloud-minio-5f9b646749-sk56p                               1/1     Running            0            66s
+dynamo-cloud-nats-0                                               2/2     Running            0            66s
+dynamo-cloud-nats-box-764fdb68f4-w42fm                            1/1     Running            0            66s
+dynamo-cloud-postgresql-0                                         1/1     Running            0            66s
 ```
 
 ---
 
 ### Exposing the Dynamo API Store Service
 
-We’ll need to expose the Dynamo API Store service as this will serve as the entry point for configuring our inference graph. Use the following ingress configuration, which will be exposed via NGINX:
+We'll need to expose the Dynamo API Store service as this will serve as the entry point for configuring our inference graph. Use the following ingress configuration, which will be exposed via NGINX:
 
 ```yaml
 cat <<EOF > dynamo_cloud_ingress.yaml 
@@ -279,16 +271,6 @@ curl http://${DYNAMO_HOST}/healthz
 
 ## Building Dynamo Runtime Container Image
 
-From the root of the Dynamo repo, run the commands below to install Dynamo and dependencies:
-
-```bash
-sudo apt-get update
-DEBIAN_FRONTEND=noninteractive sudo apt-get install -yq python3-dev python3-pip python3-venv libucx0
-python3 -m venv venv
-source venv/bin/activate
-pip install ai-dynamo[all]
-```
-
 Set up environment for vLLM runtime image build:
 
 ```bash
@@ -301,8 +283,6 @@ export BUILD_PLATFORM="linux/amd64"
 Dry run and build the image (the build process can take up to 20-30 minutes for vLLM runtime):
 
 ```bash
-./container/build.sh --framework $FRAMEWORK --base-image $BASE_IMAGE --base-image-tag $BASE_IMAGE_TAG --platform $BUILD_PLATFORM --dry-run
-
 ./container/build.sh --framework $FRAMEWORK --base-image $BASE_IMAGE --base-image-tag $BASE_IMAGE_TAG --platform $BUILD_PLATFORM
 ```
 
@@ -311,30 +291,28 @@ Dry run and build the image (the build process can take up to 20-30 minutes for 
 
 ### Pushing Dynamo Runtime Container Images to Private Registry
 
-Export variables and push the image:
+Export variables and push the image for optional reuse later:
 
 ```bash
-export CONTAINER_REGISTRY=<YOUR_DOCKER_REGISTRY>
-export CONTAINER_REGISTRY_ORG_ID=<YOUR_DOCKER_ORG_ID>
 export DYNAMO_IMAGE=dynamo
 export DYNAMO_IMAGE_TAG=latest-vllm
 export REGISTRY_DYNAMO_IMAGE_TAG=vllm-1.0.0
 
-docker tag $DYNAMO_IMAGE:$DYNAMO_IMAGE_TAG $CONTAINER_REGISTRY/$CONTAINER_REGISTRY_ORG_ID/$DYNAMO_IMAGE:$REGISTRY_DYNAMO_IMAGE_TAG
-docker push $CONTAINER_REGISTRY/$CONTAINER_REGISTRY_ORG_ID/$DYNAMO_IMAGE:$REGISTRY_DYNAMO_IMAGE_TAG
+docker tag $DYNAMO_IMAGE:$DYNAMO_IMAGE_TAG $DOCKER_SERVER/$DYNAMO_IMAGE:$REGISTRY_DYNAMO_IMAGE_TAG
+docker push $DOCKER_SERVER/$DYNAMO_IMAGE:$REGISTRY_DYNAMO_IMAGE_TAG
 ```
 
 ---
 
 ## Deploying Dynamo Inference Graphs to Kubernetes
 
-Export variables and run the container shell:
+Export variables and run the command to access the container shell. The image in this case should be the vLLM image that was built in the previous step
 
 ```bash
-export DYNAMO_IMAGE=<YOUR_DYNAMO_VLLM_IMAGE>
+export DYNAMO_VLLM_IMAGE=<YOUR_DYNAMO_VLLM_IMAGE>
 export FRAMEWORK=VLLM
 
-./container/run.sh -it --image $DYNAMO_IMAGE --framework $FRAMEWORK --mount-workspace
+./container/run.sh -it --image $DYNAMO_VLLM_IMAGE --framework $FRAMEWORK --mount-workspace
 ```
 
 Inside the container shell, set environment variables:
@@ -359,7 +337,7 @@ export DEPLOYMENT_NAME=llm-agg
 dynamo deployment create $DYNAMO_TAG -n $DEPLOYMENT_NAME -f ./configs/agg.yaml
 ```
 
-In a separate terminal (outside the container shell), check the builder pod and deployment status. Note it could take up to 20 minutes for the builder pod to complete its job:
+In a separate terminal (outside the container shell), check the builder pod and deployment status. Note it could take up to 10 minutes for the builder pod to complete its job:
 
 
 ```bash
@@ -368,6 +346,20 @@ kubectl get pods
 # output for builder pod should be similar
 NAME                                             READY  STATUS    RESTARTS   AGE
 dynamo-image-builder-d14tkjnp3bks7390bab0-m449g  1/1    Running   0          11m
+```
+
+After checking the builder pod status, you can follow the build process and debug any issues by streaming the logs from the builder pod. First, get the name of the builder pod (it will look like `dynamo-image-builder-...`). Then, use the following command:
+
+```bash
+kubectl logs -f <BUILDER_POD_NAME>
+```
+
+Replace `<BUILDER_POD_NAME>` with the actual pod name from the previous `kubectl get pods` output. The `-f` flag will stream the logs in real time so you can monitor the build process and catch any errors as they happen.
+
+If you want to see logs for a previous run (if the pod has restarted), you can add the `--previous` flag:
+
+```bash
+kubectl logs --previous <BUILDER_POD_NAME>
 ```
 
 Once the build process completes you should be able to see the relevant Dynamo pods spin up:
@@ -390,24 +382,55 @@ llm-agg-vllmworker-866656b998-ztzmk        1/1    Running   0          11m
 Once all the pods are in a running state, verify the details regarding the Dynamo service that is spun up:
 
 ```bash
+# get services running in dynamo-cloud namespace
 kubectl get svc
 
 # output should be similar
 NAME                  TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)     AGE
+....
 llm-agg-frontend      ClusterIP   10.110.239.205   <none>        3000/TCP    6m44s
 ```
 
-Port forward the frontend service to your local host:
+Once we've verified service details, we'll create an Ingress resource to expose the service and run inference on it. Use the following ingress configuration, which will be exposed via NGINX:
 
-```bash
-export DYNAMO_FRONTEND_SVC=llm-agg-frontend
-kubectl port-forward svc/$DYNAMO_FRONTEND_SVC 8000:3000
+```yaml
+cat <<EOF > llm_agg_frontend_ingress.yaml 
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: llm-agg-frontend-ingress
+  namespace: $NAMESPACE
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: dynamo-llm-agg-frontend.test
+    http:
+      paths:
+      - backend:
+          service:
+            name: llm-agg-frontend
+            port:
+              number: 8000
+        path: /
+        pathType: Prefix
+EOF
 ```
 
-In a seperate shell, test the API endpoint:
+Apply the ingress resource:
 
 ```bash
-curl localhost:8000/v1/chat/completions   -H "Content-Type: application/json"   -d '{
+kubectl apply -f llm_agg_frontend_ingress.yaml
+kubectl get ingress
+```
+
+Once the ingress resource has been created, make sure to add the entry along with it's address in your `/etc/hosts` file. Look up the external IP address as reported by Minikube by running the `minikube ip` command. Once found, update the hosts file with the following line:
+
+`<YOUR_MINIKUBE_IP> dynamo-llm-agg-frontend.test`
+
+Once configured, we can make cURL requests to the Dynamo API endpoint:
+
+```bash
+curl http://dynamo-llm-agg-frontend.test/v1/chat/completions   -H "Content-Type: application/json"   -d '{
     "model": "deepseek-ai/DeepSeek-R1-Distill-Llama-8B",
     "messages": [
     {
@@ -418,4 +441,22 @@ curl localhost:8000/v1/chat/completions   -H "Content-Type: application/json"   
     "stream":false,
     "max_tokens": 100
   }'
+```
+
+---
+
+## Clean Up Resources
+
+In order to clean up any Dynamo related resources, from the container shell you launched the deployment from, simply run the following command:
+
+```bash
+# delete dynamo deployment
+dynamo deployment delete $DEPLOYMENT_NAME
+```
+
+This will spin down the Dynamo deployment we configured and spin down all the resources that were leveraged for the deployment. As a final cleanup step, we can also delete the ingress resource that was created to expose the service:
+
+```bash
+# delete ingress resource created for dynamo service
+kubectl delete -f llm_agg_frontend_ingress.yaml
 ```
