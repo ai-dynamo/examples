@@ -1,0 +1,148 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# NVIDIA Dynamo LLM Deployment Example
+# This demonstrates how to deploy LLM inference graphs using the official
+# NVIDIA Dynamo Cloud Platform CRDs
+#
+# Based on: https://docs.nvidia.com/dynamo/latest/guides/dynamo_deploy/dynamo_operator.html
+
+---
+apiVersion: nvidia.com/v1alpha1
+kind: DynamoGraphDeployment
+metadata:
+  name: llm-multi-model
+  namespace: dynamo-cloud
+spec:
+  # Reference to the built and pushed Dynamo component
+  # Replace with your actual component reference after building with:
+  # earthly --push +all-docker --DOCKER_SERVER=$DOCKER_SERVER --IMAGE_TAG=$IMAGE_TAG
+  dynamoComponent: frontend:latest  # Update this with your actual component reference
+  
+  # Global environment variables for all services
+  envs:
+  - name: LOG_LEVEL
+    value: "INFO"
+  - name: ENABLE_METRICS
+    value: "true"
+  
+  # Service-specific configurations
+  services:
+    Frontend:
+      replicas: 1
+      envs:
+      - name: FRONTEND_PORT
+        value: "8080"
+      resources:
+        requests:
+          cpu: 500m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 2Gi
+    
+    Processor:
+      replicas: 1
+      envs:
+      - name: PROCESSOR_WORKERS
+        value: "4"
+      resources:
+        requests:
+          cpu: 1000m
+          memory: 2Gi
+        limits:
+          cpu: 2000m
+          memory: 4Gi
+    
+    # vLLM Worker for multiple models
+    VllmWorker:
+      replicas: 1
+      envs:
+      - name: VLLM_MODELS
+        value: "llama-3.1-8b-instruct,llama-3.1-70b-instruct,mixtral-8x22b-instruct"
+      - name: VLLM_GPU_MEMORY_UTILIZATION
+        value: "0.9"
+      resources:
+        requests:
+          cpu: 2000m
+          memory: 8Gi
+          nvidia.com/gpu: 4
+        limits:
+          cpu: 4000m
+          memory: 16Gi
+          nvidia.com/gpu: 4
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+    
+    # Prefill Worker for disaggregated serving
+    PrefillWorker:
+      replicas: 2
+      envs:
+      - name: PREFILL_MAX_BATCH_SIZE
+        value: "32"
+      resources:
+        requests:
+          cpu: 1000m
+          memory: 4Gi
+          nvidia.com/gpu: 2
+        limits:
+          cpu: 2000m
+          memory: 8Gi
+          nvidia.com/gpu: 2
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+    
+    # Router for KV-aware routing
+    Router:
+      replicas: 1
+      envs:
+      - name: ROUTER_ALGORITHM
+        value: "kv_aware"
+      - name: ROUTER_CACHE_SIZE
+        value: "1000"
+      resources:
+        requests:
+          cpu: 500m
+          memory: 1Gi
+        limits:
+          cpu: 1000m
+          memory: 2Gi
+
+---
+# Service to expose the Dynamo deployment
+apiVersion: v1
+kind: Service
+metadata:
+  name: dynamo-llm-service
+  namespace: dynamo-cloud
+  labels:
+    app: dynamo-llm
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  selector:
+    dynamo-component: Frontend 

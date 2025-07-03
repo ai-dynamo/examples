@@ -1,0 +1,171 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# LLM Router Helm Values for NVIDIA Dynamo Cloud Platform Integration
+# This configuration integrates the LLM Router with the official NVIDIA Dynamo deployment
+# Based on: https://github.com/NVIDIA-AI-Blueprints/llm-router/tree/main/deploy/helm/llm-router
+# 
+# Pure Kubernetes-Native Approach: Uses ConfigMaps for configuration
+# 
+# IMPORTANT: Update the api_base URL to match your Dynamo deployment
+# This should point to your actual Dynamo service endpoint
+
+# Dynamo Configuration - will be created as ConfigMap
+dynamoConfig:
+  api_base: "http://dynamo-llm-service.dynamo-cloud.svc.cluster.local:8080"
+  namespace: "dynamo-cloud"
+  # For external Dynamo deployments, use:
+  # api_base: "https://your-dynamo-endpoint.com"
+
+# Router Controller Configuration
+routerController:
+  replicaCount: 1
+  image:
+    repository: nvcr.io/nvidia/router-controller
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 8084
+  
+  # Configure environment variables from ConfigMap and Secrets
+  env:
+    - name: LOG_LEVEL
+      value: "INFO"
+    - name: ENABLE_METRICS
+      value: "true"
+    - name: DYNAMO_ENDPOINT
+      value: "{{ .Values.dynamoConfig.api_base }}"
+    - name: DYNAMO_NAMESPACE
+      value: "{{ .Values.dynamoConfig.namespace }}"
+    - name: DYNAMO_API_BASE
+      value: "{{ .Values.dynamoConfig.api_base }}"
+    - name: DYNAMO_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: dynamo-api-secret
+          key: DYNAMO_API_KEY
+  
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+
+# Router Server Configuration  
+routerServer:
+  replicaCount: 1
+  image:
+    repository: nvcr.io/nvidia/router-server
+    tag: latest
+    pullPolicy: IfNotPresent
+    
+  service:
+    type: ClusterIP
+    port: 8000
+    
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 2Gi
+      nvidia.com/gpu: 1
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+      nvidia.com/gpu: 1
+      
+  nodeSelector:
+    nvidia.com/gpu.present: "true"
+    
+  tolerations:
+    - key: nvidia.com/gpu
+      operator: Exists
+      effect: NoSchedule
+
+# Configuration Map for Router Policies
+config:
+  # The router configuration will be mounted from router-config-dynamo.yaml
+  mountPath: /app/config
+  configMap:
+    name: router-config-dynamo
+
+# Ingress Configuration (enabled for external access)
+ingress:
+  enabled: true
+  className: "nginx"  # Use your cluster's ingress class
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+  hosts:
+    - host: llm-router.local  # CHANGE THIS: Replace with your actual domain
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: llm-router
+              port:
+                number: 8000  # Router service port
+  tls: []
+    # - secretName: llm-router-tls
+    #   hosts:
+    #     - llm-router.your-domain.com
+
+# Monitoring
+monitoring:
+  prometheus:
+    enabled: true
+    port: 9090
+  grafana:
+    enabled: false  # Use existing monitoring stack if available
+
+# Security
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podSecurityContext:
+  fsGroup: 2000
+
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: false  # Router may need to write temporary files
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Image Pull Secrets (if needed for private registries)
+imagePullSecrets: []
+  # - name: nvidia-registry-secret
+
+# Cross-namespace service access
+rbac:
+  create: true
+  rules:
+  - apiGroups: [""]
+    resources: ["services", "endpoints"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["services"]
+    resourceNames: ["dynamo-llm-service"]
+    verbs: ["get"] 
