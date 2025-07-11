@@ -18,11 +18,11 @@ This task will create etcd and nats containers on a CPU cluster. You can reuse t
 2. Dynamo vLLM Frontend Task
 This task will create vLLM frontend, processors, routers and a decode worker.
 Please follow steps below to create this task
-- Set container name as `dynamo-frontend` and use prebuild Dynamo image with vLLM backend.
+- Set container name as `dynamo-frontend` and use prebuild [Dynamo container](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/ai-dynamo/containers/vllm-runtime).
 - Choose `Amazon EC2 instances` as the **Launch type** with **Task size** `2 vCPU` and `40 GB`memory
 - Choose `host` as the Network mode. 
 - Container name use `dynamo-vLLM-frontend`
-- Add your Image URL (You can use the prebuild Dynamo container) and **Yes** for Essential container. It can be AWS ECR URL or Nvidia NGC URL. If using NGC URL, please also choose **Private registry authentication** and add your Secret Manager ARN or name. 
+- Add your Image URL (You can use the prebuild [Dynamo container](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/ai-dynamo/containers/vllm-runtime)) and **Yes** for Essential container. It can be AWS ECR URL or Nvidia NGC URL. If using NGC URL, please also choose **Private registry authentication** and add your Secret Manager ARN or name. 
 - Container port  
 
 |Container port|Protocol|Port name| App protocol|

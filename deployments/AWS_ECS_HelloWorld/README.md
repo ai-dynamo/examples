@@ -29,7 +29,7 @@ We need to start 3 containers for the hello world example. A sample task definit
 
 3. Dynamo hello world pipeline container
 - Container name use `dynamo-hello-world-pipeline`
-- Add your Image URL (You can use the prebuild Dynamo container) and **Yes** for Essential container. It can be AWS ECR URL or Nvidia NGC URL. If using NGC URL, please also choose **Private registry authentication** and add your Secreate Manager ARN or name. 
+- Add your Image URL (You can use the prebuild [Dynamo container](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/ai-dynamo/containers/vllm-runtime)) and **Yes** for Essential container. It can be AWS ECR URL or Nvidia NGC URL. If using NGC URL, please also choose **Private registry authentication** and add your Secreate Manager ARN or name. 
 - Container port  
 
 |Container port|Protocol|Port name| App protocol|
