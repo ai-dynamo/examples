@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $.Release.Name }}-etcd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ $.Release.Name }}-etcd
+  template:
+    metadata:
+      labels:
+        app: {{ $.Release.Name }}-etcd
+    spec:
+      imagePullSecrets:
+        - name: {{ $.Values.dockerPullSecret.name }}
+      containers:
+      - name: etcd
+        image: {{ .Values.etcd.image }}
+        env:
+        - name: ALLOW_NONE_AUTHENTICATION
+          value: "yes"
+        ports:
+        - containerPort: 2379
+        - containerPort: 2380
