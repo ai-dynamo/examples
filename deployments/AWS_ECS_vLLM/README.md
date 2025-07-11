@@ -45,7 +45,7 @@ Create the PrefillWorker task same as the frontend worker, except for following 
 - Docker configuration with command `cd src && uv run dynamo serve components.prefill_worker:PrefillWorker -f configs/disagg_router.yaml`
 
 ## 3. Task Deployment
-You can create a service or directly run the task from the task defination
+You can create a service or directly run the task from the task definition
 1. ETCD/NATS Task
 - Choose the Fargate cluster for **Existing cluster** created in the hello world example.
 - Wait for this deployment to finish, and get the **Private IP** of this task. 
