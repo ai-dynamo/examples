@@ -10,8 +10,8 @@
 - an inbound rule for port 22 and 8000, so that you can ssh into the instance for debugging purpose
 7. Select `Turn on` for **Auto-assign public IP** option.
 8. Click on **Create** and a cluster will be deployed through cloudformation.
-## 2. Task Definations Setup
-We will create 3 tasks for the vLLM example. A sample task defination JSON is attached.
+## 2. Task Definitions Setup
+We will create 3 tasks for the vLLM example. A sample task definition JSON is attached.
 1. ETCD and Nats Task
 This task will create etcd and nats containers on a CPU cluster. You can reuse the task from the hello-world example
 
