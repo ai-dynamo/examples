@@ -3,8 +3,8 @@
 1. Go to AWS ECS console, **Clusters** tab and click on **Create cluster**
 2. Input the cluster name and choose **AWS Fargate** as the infrastructure. This option will create a serverless cluster to deploy containers
 3. Click on **Create** and a cluster will be deployed through cloudformation.
-## 2. Task Definations Setup
-We need to start 3 containers for the hello world example. A sample task defination JSON is attached.
+## 2. Task Definitions Setup
+We need to start 3 containers for the hello world example. A sample task definition JSON is attached.
 1. ETCD container
 - Container name use `etcd`
 - Image URL is `bitnami/etcd:3.6.1` and **Yes** for Essential container
