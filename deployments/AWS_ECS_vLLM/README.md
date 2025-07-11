@@ -22,7 +22,7 @@ Please follow steps below to create this task
 - Choose `Amazon EC2 instances` as the **Launch type** with **Task size** `2 vCPU` and `40 GB`memory
 - Choose `host` as the Network mode. 
 - Container name use `dynamo-vLLM-frontend`
-- Add your Image URL and **Yes** for Essential container. It can be AWS ECR URL or Nvidia NGC URL. If using NGC URL, please also choose **Private registry authentication** and add your Secreate Manager ARN or name. 
+- Add your Image URL and **Yes** for Essential container. It can be AWS ECR URL or Nvidia NGC URL. If using NGC URL, please also choose **Private registry authentication** and add your Secret Manager ARN or name. 
 - Container port  
 
 |Container port|Protocol|Port name| App protocol|
