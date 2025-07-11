@@ -13,16 +13,16 @@
 ## 2. Task Definitions Setup
 We will create 3 tasks for the vLLM example. A sample task definition JSON is attached.
 1. ETCD and Nats Task
-This task will create etcd and nats containers on a CPU cluster. You can reuse the task from the hello-world example
+This task will create etcd and nats containers on a CPU cluster. You can reuse the task from the AWS_ECS_HelloWorld example
 
 2. Dynamo vLLM Frontend Task
 This task will create vLLM frontend, processors, routers and a decode worker.
 Please follow steps below to create this task
-- Set container name as `dynamo-frontend` and use image built in this example.
+- Set container name as `dynamo-frontend` and use prebuild Dynamo image with vLLM backend.
 - Choose `Amazon EC2 instances` as the **Launch type** with **Task size** `2 vCPU` and `40 GB`memory
 - Choose `host` as the Network mode. 
 - Container name use `dynamo-vLLM-frontend`
-- Add your Image URL and **Yes** for Essential container. It can be AWS ECR URL or Nvidia NGC URL. If using NGC URL, please also choose **Private registry authentication** and add your Secret Manager ARN or name. 
+- Add your Image URL (You can use the prebuild Dynamo container) and **Yes** for Essential container. It can be AWS ECR URL or Nvidia NGC URL. If using NGC URL, please also choose **Private registry authentication** and add your Secret Manager ARN or name. 
 - Container port  
 
 |Container port|Protocol|Port name| App protocol|
@@ -36,13 +36,13 @@ Please follow steps below to create this task
 |ETCD_ENDPOINTS|Value|http://IP_ADDRESS:2379|
 |NATS_SERVER|Value|http://IP_ADDRESS:4222|
 - Docker configuration  
-Add `sh,-c` in **Entry point** and `cd src && uv run dynamo serve graphs.agg_router:Frontend -f configs/disagg_router.yaml` in **Command**
+Add `sh,-c` in **Entry point** and `cd examples/llm && uv run dynamo serve graphs.agg_router:Frontend -f configs/disagg_router.yaml` in **Command**
 
 3. Dynamo vLLM PrefillWorker Task
 Create the PrefillWorker task same as the frontend worker, except for following changes
 - Set container name as `dynamo-prefill`
 - No container port mapping
-- Docker configuration with command `cd src && uv run dynamo serve components.prefill_worker:PrefillWorker -f configs/disagg_router.yaml`
+- Docker configuration with command `cd examples/llm && uv run dynamo serve components.prefill_worker:PrefillWorker -f configs/disagg_router.yaml`
 
 ## 3. Task Deployment
 You can create a service or directly run the task from the task definition

@@ -1,30 +1,38 @@
 {
-    "family": "Dynamo-backend",
+    "family": "Dynamo-frontend",
     "containerDefinitions": [
         {
-            "name": "dynamo-prefill",
-            "image": "nvcr.io/NGC_ORG/dynamo-pipelines:vllm",
+            "name": "dynamo-vllm-frontend",
+            "image": "nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.3.1",
             "repositoryCredentials": {
-                "credentialsParameter": "arn:aws:secretsmanager:us-east-2:AWS_ID:secret:ngc_access"
+                "credentialsParameter": "arn:aws:secretsmanager:us-east-2:AWS_ID:secret:ngc_nvcr_access"
             },
             "cpu": 0,
-            "portMappings": [],
+            "portMappings": [
+                {
+                    "name": "8000",
+                    "containerPort": 8000,
+                    "hostPort": 8000,
+                    "protocol": "tcp",
+                    "appProtocol": "http"
+                }
+            ],
             "essential": true,
             "entryPoint": [
                 "sh",
                 "-c"
             ],
             "command": [
-                "cd src && uv run dynamo serve components.prefill_worker:PrefillWorker -f configs/disagg_router.yaml"
+                "cd examples/llm && uv run dynamo serve graphs.agg_router:Frontend -f configs/disagg_router.yaml"
             ],
             "environment": [
                 {
                     "name": "ETCD_ENDPOINTS",
-                    "value": "http://ETCDNATS_TASK_IP:2379"
+                    "value": "http://IP_ADDRESS:2379"
                 },
                 {
                     "name": "NATS_SERVER",
-                    "value": "nats://ETCDNATS_TASK_IP:4222"
+                    "value": "nats://IP_ADDRESS:4222"
                 }
             ],
             "environmentFiles": [],
@@ -34,7 +42,7 @@
             "logConfiguration": {
                 "logDriver": "awslogs",
                 "options": {
-                    "awslogs-group": "/ecs/Dynamo-backend",
+                    "awslogs-group": "/ecs/Dynamo-frontend",
                     "mode": "non-blocking",
                     "awslogs-create-group": "true",
                     "max-buffer-size": "25m",
@@ -54,7 +62,7 @@
     ],
     "taskRoleArn": "arn:aws:iam::AWS_ID:role/ecsTaskExecutionRole",
     "executionRoleArn": "arn:aws:iam::AWS_ID:role/ecsTaskExecutionRole",
-    "networkMode": "bridge",
+    "networkMode": "host",
     "volumes": [],
     "placementConstraints": [],
     "requiresCompatibilities": [

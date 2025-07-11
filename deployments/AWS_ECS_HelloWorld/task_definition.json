@@ -3,10 +3,7 @@
     "containerDefinitions": [
         {
             "name": "etcd",
-            "image": "nvcr.io/NGC_ORG/etcd:11.3.1",
-            "repositoryCredentials": {
-                "credentialsParameter": "arn:aws:secretsmanager:us-east-2:AWS_ID:secret:ngc_nvcr_access"
-            },
+            "image": "bitnami/etcd",
             "cpu": 0,
             "portMappings": [
                 {
@@ -51,10 +48,7 @@
         },
         {
             "name": "nats",
-            "image": "nvcr.io/NGC_ORG/nats:1.3.5",
-            "repositoryCredentials": {
-                "credentialsParameter": "arn:aws:secretsmanager:us-east-2:AWS_ID:secret:ngc_nvcr_access"
-            },
+            "image": "nats",
             "cpu": 0,
             "portMappings": [
                 {
@@ -101,7 +95,7 @@
         },
         {
             "name": "dynamo-hello-world-pipeline",
-            "image": "nvcr.io/NGC_ORG/dynamo-pipelines:hello_world",
+            "image": "nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.3.1",
             "repositoryCredentials": {
                 "credentialsParameter": "arn:aws:secretsmanager:us-east-2:AWS_ID:secret:ngc_nvcr_access"
             },
@@ -120,7 +114,7 @@
                 "-c"
             ],
             "command": [
-                "cd src && uv run dynamo serve hello_world:Frontend"
+                "cd examples/hello_world && uv run dynamo serve hello_world:Frontend"
             ],
             "environment": [
                 {
